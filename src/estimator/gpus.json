@@ -1,0 +1,29 @@
+{
+  "GPUs": [
+    {
+      "name": "GeForce RTX 3090",
+      "memory": "24 GB GDDR6X",
+      "flops": "35.6 TFLOPs"
+    },
+    {
+      "name": "GeForce RTX 3080",
+      "memory": "10 GB GDDR6X",
+      "flops": "29.7 TFLOPs"
+    },
+    {
+      "name": "GeForce RTX 3070",
+      "memory": "8 GB GDDR6",
+      "flops": "20.3 TFLOPs"
+    },
+    {
+      "name": "GeForce RTX 3060 Ti",
+      "memory": "8 GB GDDR6",
+      "flops": "16.2 TFLOPs"
+    },
+    {
+      "name": "GeForce RTX 3060",
+      "memory": "12 GB GDDR6",
+      "flops": "12.7 TFLOPs"
+    }
+  ]
+}
