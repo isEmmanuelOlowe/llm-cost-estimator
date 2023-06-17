@@ -36,7 +36,7 @@ export function estimateInferenceTime(
   gpu_tflops: number,
   num_params: number,
   memory_bandwidth: number,
-  overhead_factor: 1.2
+  overhead_factor: number
 ): number {
   // Convert GPU TFLOPs to FLOPs and divide by 2 because of FMA.
   const gpu_flops: number = (gpu_tflops * 1e12) / 2;
@@ -66,7 +66,7 @@ export function estimateTrainingCost(
   gpu_tflops: number,
   num_params: number,
   memory_bandwidth: number,
-  overhead_factor: 1.2,
+  overhead_factor: number,
   gpu_hourly_cost: number,
   num_epochs: number,
   dataset_size: number

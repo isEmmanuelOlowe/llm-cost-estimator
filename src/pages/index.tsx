@@ -31,15 +31,15 @@ export default function HomePage() {
   const [numHeads, setNumHeads] = useState<number>(0);
 
   //Estimating the inference time
-  const [flops, setFlops] = useState<number>();
-  const [gpuTFlops, setGpuTFlops] = useState<number>();
-  const [memoryBandwith, setMemoryBaandwith] = useState<number>();
+  const [flops, setFlops] = useState<number>(0);
+  const [gpuTFlops, setGpuTFlops] = useState<number>(0);
+  const [memoryBandwith, setMemoryBaandwith] = useState<number>(0);
   const [overheadFactor, setOverheadFactor] = useState<number>(1.2);
 
   //Estimating cloud training cost
-  const [gpuHourlyCost, setGpuHourlyCost] = useState<number>();
-  const [numEpochs, setNumEpochs] = useState<number>();
-  const [datasetSize, setDatasetSize] = useState<number>();
+  const [gpuHourlyCost, setGpuHourlyCost] = useState<number>(0);
+  const [numEpochs, setNumEpochs] = useState<number>(0);
+  const [datasetSize, setDatasetSize] = useState<number>(0);
 
   const formatGB = (num: number): string => {
     if (num < 1 || num === undefined) {
@@ -167,9 +167,8 @@ export default function HomePage() {
           </div>
           <p>
             Estimated model parametrs:{' '}
-            {calculateNumParams(numLayers, seqLength, hiddenSize, numHeads) /
-              10 ** 9}{' '}
-            in Billions{' '}
+            {calculateNumParams(numLayers, seqLength, hiddenSize) / 10 ** 9} in
+            Billions{' '}
           </p>
           <p>
             Estimated Number of Floating Point Operations:{' '}
@@ -263,6 +262,44 @@ export default function HomePage() {
           <div className='flex flex-col'>
             <p>Estimate the cost of training a model on Cloud Services</p>
             <label className='label'>
+              <span className='label-text'>FLOPS of inference</span>
+              <span className='label-text-alt'>GFLOP</span>
+            </label>
+            <input
+              className='input input-bordered input-primary w-full max-w-xs'
+              placeholder='Number of Floating Point Operations of '
+              type='number'
+              onChange={(e) => {
+                setFlops(parseFloat(e.target.value));
+              }}
+              value={flops}
+            />
+            <label className='label'>
+              <span className='label-text'>GPU TFlops</span>
+            </label>
+            <input
+              className='input input-bordered input-primary w-full max-w-xs'
+              placeholder='GPU TFlops'
+              type='number'
+              onChange={(e) => {
+                setGpuTFlops(parseFloat(e.target.value));
+              }}
+              value={gpuTFlops}
+            />
+            <label className='label'>
+              <span className='label-text'>Parameter Size</span>
+              <span className='label-text-alt'>billions</span>
+            </label>
+            <input
+              className='input input-bordered input-primary w-full max-w-xs'
+              placeholder='Number of Model Parameters'
+              type='number'
+              onChange={(e) => {
+                setNumParams(parseInt(e.target.value));
+              }}
+              value={numParams}
+            />
+            <label className='label'>
               <span className='label-text'>GPU Hourly Cost</span>
             </label>
             <input
@@ -304,6 +341,7 @@ export default function HomePage() {
             {estimateTrainingCost(
               flops,
               gpuTFlops,
+              numParams,
               memoryBandwith,
               overheadFactor,
               gpuHourlyCost,
