@@ -1,4 +1,4 @@
-# LLM Cost Predictor
+# LLM Cost Estimator
   A project developed to predict the computational costs associated with training and inferencing large language models (LLMs). The tool utilizes various key model parameters such as FLOPs, number of parameters, memory bandwidth, and others to provide an accurate estimate of GPU usage, inference time, and overall training cost.
 
 ## Features
