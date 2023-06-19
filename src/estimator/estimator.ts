@@ -4,6 +4,56 @@ export function calculateMemory(numParams: number, bytes: number): number {
   return paramsInGB;
 }
 
+export function calculateNumParams(
+  numLayers: number,
+  seqLength: number,
+  hiddenDims: number
+): number {
+  const selfAttentionParams = 4 * numLayers * hiddenDims * hiddenDims;
+  const ffNetworkParams = 2 * numLayers * hiddenDims * hiddenDims * 4;
+  const positionalEncodingsParams = seqLength * hiddenDims;
+  const totalParams =
+    selfAttentionParams + ffNetworkParams + positionalEncodingsParams;
+  return totalParams;
+}
+
+interface Config {
+  vocab_size: number;
+  d_model: number;
+  n_head: number;
+  num_layers: number;
+  n_head_kv: number;
+  d_ff: number;
+  n_positions: number;
+  num_decoder_layers: number;
+}
+
+export function estimateModelSizeT5(config: Config): number {
+  let totalParams = 0;
+
+  // Count the number of parameters in the encoder layers
+  const encoderLayersParams =
+    config.d_model * config.vocab_size * 4 * config.d_model + // self-attention params
+    config.d_model * config.vocab_size * config.d_ff + // feed-forward layer params
+    config.d_model * config.vocab_size * 2; // layer normalization params
+  totalParams += config.num_layers * encoderLayersParams;
+
+  // Count the number of parameters in the decoder layers
+  const decoderLayersParams =
+    config.d_model * config.vocab_size * 4 * config.d_model + // self-attention params
+    config.d_model * config.vocab_size * config.d_ff * 2 + // encoder-decoder attention + feed-forward layer params
+    config.d_model * config.vocab_size * 3; // layer normalization params
+  totalParams += config.num_decoder_layers * decoderLayersParams;
+
+  // Count the number of parameters in the embedding layers
+  const embeddingParams =
+    config.vocab_size * config.d_model + // token embeddings
+    config.n_positions * config.d_model; // position embeddings
+  totalParams += embeddingParams;
+
+  return totalParams;
+}
+
 export function calculateFlops(
   numLayers: number,
   seqLength: number,
@@ -18,17 +68,27 @@ export function calculateFlops(
   return totalFlops;
 }
 
-export function calculateNumParams(
-  numLayers: number,
-  seqLength: number,
-  hiddenDims: number
+export function estimateModelSize(
+  vocab_size: number,
+  hidden_size: number,
+  n_head: number,
+  n_layer: number,
+  n_head_kv: number
 ): number {
-  const selfAttentionParams = 4 * numLayers * hiddenDims * hiddenDims;
-  const ffNetworkParams = 2 * numLayers * hiddenDims * hiddenDims * 4;
-  const positionalEncodingsParams = seqLength * hiddenDims;
-  const totalParams =
-    selfAttentionParams + ffNetworkParams + positionalEncodingsParams;
-  return totalParams;
+  // Word Embeddings
+  let total_params = vocab_size * hidden_size;
+
+  // Self-attention Layers
+  total_params +=
+    n_layer * (n_head * hidden_size * 3 + n_head_kv * hidden_size * 2) * 2;
+
+  // Position-wise Feed-forward Networks
+  total_params += n_layer * hidden_size * 4;
+
+  // LayerNorm Layers
+  total_params += n_layer * hidden_size * 2;
+
+  return total_params;
 }
 
 export function estimateInferenceTime(

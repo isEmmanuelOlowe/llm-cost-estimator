@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.9",
+    "axios": "^1.4.0",
     "clsx": "^1.2.1",
     "next": "^13.4.3",
     "react": "^18.2.0",

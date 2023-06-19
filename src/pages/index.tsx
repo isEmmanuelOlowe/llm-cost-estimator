@@ -1,3 +1,4 @@
+import axios from 'axios';
 import * as React from 'react';
 import { useState } from 'react';
 
@@ -8,6 +9,7 @@ import {
   calculateMemory,
   calculateNumParams,
   estimateInferenceTime,
+  estimateModelSize,
   estimateTrainingCost,
 } from '@/estimator/estimator';
 // import gpus from '@/estimator/gpus.json';
@@ -21,14 +23,17 @@ import {
  */
 
 export default function HomePage() {
+  const [modelId, setModelId] = useState<string>('google/flan-t5-xl');
+  const [modelError, setModelError] = useState<boolean>(false);
   // Estiamting the number of parameters
   const [numParams, setNumParams] = useState<number>(0);
   const [bytes, setBytes] = useState<number>(32);
   //Estimating the number of flops
   const [numLayers, setNumLayers] = useState<number>(0);
-  const [seqLength, setSeqLength] = useState<number>(0);
   const [hiddenSize, setHiddenSize] = useState<number>(0);
   const [numHeads, setNumHeads] = useState<number>(0);
+  const [vocabSize, setVocabSize] = useState<number>(0);
+  const [head_kv, setHead_kv] = useState<number>(0);
 
   //Estimating the inference time
   const [flops, setFlops] = useState<number>(0);
@@ -49,6 +54,63 @@ export default function HomePage() {
     }
   };
 
+  const setModel = async (modelId: string) => {
+    if (modelId.length > 0) {
+      try {
+        const res = await axios.get(
+          `https://huggingface.co/${modelId}/raw/main/config.json`
+        );
+        const model = res.data;
+        // console.log(model);
+        if (model) {
+          if (model.architectures == 'T5ForConditionalGeneration') {
+            setNumLayers(model.num_layers);
+            setNumHeads(model.num_heads);
+            setHiddenSize(model.d_model);
+            setHead_kv(model.d_kv);
+            setNumParams(
+              calculateNumParams(
+                model.num_layers,
+                model.vocab_size,
+                model.d_model
+              ) /
+                10 ** 9
+            );
+          } else {
+            setNumLayers(model.n_layer);
+            setNumHeads(model.n_head);
+            if (model.model_type == 'mpt') {
+              setHiddenSize(model.d_model);
+              setNumParams(
+                calculateNumParams(
+                  model.n_layer,
+                  model.vocab_size,
+                  model.d_model
+                ) /
+                  10 ** 9
+              );
+            } else {
+              setHiddenSize(model.hidden_size);
+              setHead_kv(model.n_head_kv);
+              setNumParams(
+                calculateNumParams(
+                  model.n_layer,
+                  model.vocab_size,
+                  model.hidden_size
+                ) /
+                  10 ** 9
+              );
+            }
+          }
+          setVocabSize(model.vocab_size);
+          setBytes(parseInt(model.torch_dtype.replace(/\D/g, '')));
+        }
+      } catch (e) {
+        setModelError(true);
+      }
+    }
+  };
+
   return (
     <main data-theme='dark' className='bg-full'>
       <Seo />
@@ -58,6 +120,33 @@ export default function HomePage() {
       <p className='text-center'>
         Estimate Hardware and Costs of running LLMs and Transformer projects
       </p>
+      <hr className='mx-auto my-6 w-3/4 border-2 border-black' />
+
+      <div className='m-auto max-w-xs rounded-lg border-2 border-black p-5'>
+        <label className='label'>
+          <span className='label-text'>Huggingface Model ID</span>
+        </label>
+        <input
+          className={
+            modelError
+              ? 'input input-bordered input-error w-full max-w-xs'
+              : 'input input-bordered input-primary w-full max-w-xs'
+          }
+          placeholder='e.g. bert-base-uncased'
+          type='text'
+          onChange={(e) => {
+            setModelId(e.target.value);
+          }}
+          value={modelId}
+        />
+        <button
+          className='btn btn-primary mt-2 w-full'
+          onClick={() => setModel(modelId)}
+        >
+          {' '}
+          Fetch Model{' '}
+        </button>
+      </div>
       <div className='grid md:grid-cols-2'>
         <div className='m-5 rounded-lg border-2 border-black p-5'>
           <h2>Memory Estimator</h2>
@@ -75,7 +164,7 @@ export default function HomePage() {
                 placeholder='Number of Model Parameters'
                 type='number'
                 onChange={(e) => {
-                  setNumParams(parseInt(e.target.value));
+                  setNumParams(parseFloat(e.target.value));
                 }}
                 value={numParams}
               />{' '}
@@ -90,6 +179,7 @@ export default function HomePage() {
                   setBytes(parseInt(e.target.value));
                 }}
                 className='select select-bordered'
+                value={bytes}
               >
                 <option value={32}>32-bit Float</option>
                 <option value={16}>16-bit Float</option>
@@ -124,16 +214,16 @@ export default function HomePage() {
             </div>
             <div>
               <label className='label'>
-                <span className='label-text'>Maximum Sequence Length</span>
+                <span className='label-text'>Vocab Size</span>
               </label>
               <input
                 className='input input-bordered input-primary w-full max-w-xs'
-                placeholder='Maximum Sequence Length'
+                placeholder='Vocab Size'
                 type='number'
                 onChange={(e) => {
-                  setSeqLength(parseFloat(e.target.value));
+                  setVocabSize(parseFloat(e.target.value));
                 }}
-                value={seqLength}
+                value={vocabSize}
               />
             </div>
             <div>
@@ -167,12 +257,19 @@ export default function HomePage() {
           </div>
           <p>
             Estimated model parametrs:{' '}
-            {calculateNumParams(numLayers, seqLength, hiddenSize) / 10 ** 9} in
-            Billions{' '}
+            {estimateModelSize(
+              vocabSize,
+              hiddenSize,
+              numHeads,
+              numLayers,
+              head_kv
+            ) /
+              10 ** 9}{' '}
+            in Billions{' '}
           </p>
           <p>
             Estimated Number of Floating Point Operations:{' '}
-            {calculateFlops(numLayers, seqLength, hiddenSize, numHeads) /
+            {calculateFlops(numLayers, vocabSize, hiddenSize, numHeads) /
               10 ** 10}{' '}
             GFLOPs{' '}
           </p>
