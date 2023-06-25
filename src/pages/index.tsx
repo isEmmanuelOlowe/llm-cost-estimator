@@ -7,13 +7,11 @@ import Seo from '@/components/Seo';
 import {
   calculateFlops,
   calculateMemory,
-  calculateNumParams,
   estimateInferenceTime,
-  estimateModelSize,
   estimateTrainingCost,
 } from '@/estimator/estimator';
 // import gpus from '@/estimator/gpus.json';
-
+import models from '@/estimator/models.json';
 /**
  * SVGR Support
  * Caveat: No React Props Type.
@@ -33,7 +31,7 @@ export default function HomePage() {
   const [hiddenSize, setHiddenSize] = useState<number>(0);
   const [numHeads, setNumHeads] = useState<number>(0);
   const [vocabSize, setVocabSize] = useState<number>(0);
-  const [head_kv, setHead_kv] = useState<number>(0);
+  // const [head_kv, setHead_kv] = useState<number>(0);
 
   //Estimating the inference time
   const [flops, setFlops] = useState<number>(0);
@@ -63,43 +61,23 @@ export default function HomePage() {
         const model = res.data;
         // console.log(model);
         if (model) {
+          models.some((element) =>
+            element.name == modelId ? setNumParams(element.num_params) : false
+          );
+
           if (model.architectures == 'T5ForConditionalGeneration') {
             setNumLayers(model.num_layers);
             setNumHeads(model.num_heads);
             setHiddenSize(model.d_model);
-            setHead_kv(model.d_kv);
-            setNumParams(
-              calculateNumParams(
-                model.num_layers,
-                model.vocab_size,
-                model.d_model
-              ) /
-                10 ** 9
-            );
+            // setHead_kv(model.d_kv);
           } else {
             setNumLayers(model.n_layer);
             setNumHeads(model.n_head);
             if (model.model_type == 'mpt') {
               setHiddenSize(model.d_model);
-              setNumParams(
-                calculateNumParams(
-                  model.n_layer,
-                  model.vocab_size,
-                  model.d_model
-                ) /
-                  10 ** 9
-              );
             } else {
               setHiddenSize(model.hidden_size);
-              setHead_kv(model.n_head_kv);
-              setNumParams(
-                calculateNumParams(
-                  model.n_layer,
-                  model.vocab_size,
-                  model.hidden_size
-                ) /
-                  10 ** 9
-              );
+              // setHead_kv(model.n_head_kv);
             }
           }
           setVocabSize(model.vocab_size);
@@ -255,18 +233,6 @@ export default function HomePage() {
               />
             </div>
           </div>
-          <p>
-            Estimated model parametrs:{' '}
-            {estimateModelSize(
-              vocabSize,
-              hiddenSize,
-              numHeads,
-              numLayers,
-              head_kv
-            ) /
-              10 ** 9}{' '}
-            in Billions{' '}
-          </p>
           <p>
             Estimated Number of Floating Point Operations:{' '}
             {calculateFlops(numLayers, vocabSize, hiddenSize, numHeads) /

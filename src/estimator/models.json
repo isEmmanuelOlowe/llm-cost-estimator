@@ -1,0 +1,54 @@
+[
+  {
+    "name": "google/flan-t5-small",
+    "num_params": 0.08
+  },
+  {
+    "name": "google/flan-t5-base",
+    "num_params": 0.25
+  },
+  {
+    "name": "google/flan-t5-large",
+    "num_params": 0.78
+  },
+  {
+    "name": "google/flan-t5-xl",
+    "num_params": 3
+  },
+  {
+    "name": "google/flan-t5-xxl",
+    "num_params": 11
+  },
+  {
+    "name": "tiiuae/falcon-40b",
+    "num_params": 40
+  },
+  {
+    "name": "tiiuae/falcon-40b-instruct",
+    "num_params": 40
+  },
+  {
+    "name": "tiiuae/falcon-7b",
+    "num_params": 7
+  },
+  {
+    "name": "tiiuae/falcon-40b-instruct",
+    "num_params": 7
+  },
+  {
+    "name": "TheBloke/wizardLM-7B-HF",
+    "num_params": 7
+  },
+  {
+    "name": "openlm-research/open_llama_13b",
+    "num_params": 13
+  },
+  {
+    "name": "TheBloke/Wizard-Vicuna-30B-Uncensored-GPTQ",
+    "num_params": 30
+  },
+  {
+    "name": "lmsys/vicuna-13b-delta-v1.1",
+    "num_params": 13
+  }
+]
