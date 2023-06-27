@@ -32,6 +32,118 @@
     "num_params": 7
   },
   {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-1024-12b",
+    "num_params": 12
+  },
+  {
+    "name": "h2oai/h2ogpt-oig-oasst1-512-6_9b",
+    "num_params": 9
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-oasst1-512-12b",
+    "num_params": 12
+  },
+  {
+    "name": "h2oai/h2ogpt-oasst1-falcon-40b",
+    "num_params": 40
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v1",
+    "num_params": 40
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-oasst1-512-20b",
+    "num_params": 20
+  },
+  {
+    "name": "h2oai/h2ogpt-oig-oasst1-falcon-40b",
+    "num_params": 40
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-multilang-2048-falcon-7b",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-multilang-1024-20b",
+    "num_params": 20
+  },
+  {
+    "name": "h2oai/h2ogpt-oig-oasst1-256-6_9b",
+    "num_params": 9
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-700bt",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-1024-20b",
+    "num_params": 20
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2",
+    "num_params": 7
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b",
+    "num_params": 13
+  },
+  {
+    "name": "h2oai/h2ogpt-research-oasst1-llama-65b",
+    "num_params": 65
+  },
+  {
+    "name": "h2oai/h2ogpt-research-oig-oasst1-512-30b",
+    "num_params": 30
+  },
+  {
+    "name": "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt",
+    "num_params": 7
+  },
+  {
+    "name": "mosaicml/mpt-7b",
+    "num_params": 7
+  },
+  {
+    "name": "mosaicml/mpt-7b-chat",
+    "num_params": 7
+  },
+  {
+    "name": "mosaicml/mpt-7b-instruct",
+    "num_params": 7
+  },
+  {
+    "name": "mosaicml/mpt-7b-storywriter",
+    "num_params": 7
+  },
+  {
+    "name": "mosaicml/mpt-30b",
+    "num_params": 30
+  },
+  {
+    "name": "mosaicml/mpt-30b-chat",
+    "num_params": 30
+  },
+  {
+    "name": "mosaicml/mpt-30b-instruct",
+    "num_params": 30
+  },
+  {
     "name": "tiiuae/falcon-40b-instruct",
     "num_params": 7
   },
