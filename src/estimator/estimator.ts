@@ -1,6 +1,6 @@
 export function calculateMemory(numParams: number, bytes: number): number {
-  const bytesPerParam = bytes / 8; // Assuming each parameter is a 32-bit float.
-  const paramsInGB = (numParams * bytesPerParam) / 1024 ** 3; // Convert to GB.
+  const bytesPerParam = bytes / 8;
+  const paramsInGB = (numParams * bytesPerParam) / 1024 ** 3;
   return paramsInGB;
 }
 
@@ -31,24 +31,21 @@ interface Config {
 export function estimateModelSizeT5(config: Config): number {
   let totalParams = 0;
 
-  // Count the number of parameters in the encoder layers
   const encoderLayersParams =
-    config.d_model * config.vocab_size * 4 * config.d_model + // self-attention params
-    config.d_model * config.vocab_size * config.d_ff + // feed-forward layer params
-    config.d_model * config.vocab_size * 2; // layer normalization params
+    config.d_model * config.vocab_size * 4 * config.d_model +
+    config.d_model * config.vocab_size * config.d_ff +
+    config.d_model * config.vocab_size * 2;
   totalParams += config.num_layers * encoderLayersParams;
 
-  // Count the number of parameters in the decoder layers
   const decoderLayersParams =
-    config.d_model * config.vocab_size * 4 * config.d_model + // self-attention params
-    config.d_model * config.vocab_size * config.d_ff * 2 + // encoder-decoder attention + feed-forward layer params
-    config.d_model * config.vocab_size * 3; // layer normalization params
+    config.d_model * config.vocab_size * 4 * config.d_model +
+    config.d_model * config.vocab_size * config.d_ff * 2 +
+    config.d_model * config.vocab_size * 3;
   totalParams += config.num_decoder_layers * decoderLayersParams;
 
-  // Count the number of parameters in the embedding layers
   const embeddingParams =
-    config.vocab_size * config.d_model + // token embeddings
-    config.n_positions * config.d_model; // position embeddings
+    config.vocab_size * config.d_model +
+    config.n_positions * config.d_model;
   totalParams += embeddingParams;
 
   return totalParams;
@@ -58,13 +55,12 @@ export function calculateFlops(
   numLayers: number,
   seqLength: number,
   hiddenDims: number,
-  numHeads: number
+  vocabSize: number
 ): number {
-  // Matrix multiplication in self-attention.
-  const selfAttentionFlops = numLayers * seqLength * hiddenDims * numHeads;
-  // Matrix multiplication in feed-forward networks.
-  const ffNetworkFlops = numLayers * seqLength * hiddenDims * hiddenDims;
-  const totalFlops = selfAttentionFlops + ffNetworkFlops;
+  const attentionMlpFlops =
+    10 * numLayers * seqLength * hiddenDims * hiddenDims;
+  const outputProjectionFlops = 2 * seqLength * hiddenDims * vocabSize;
+  const totalFlops = attentionMlpFlops + outputProjectionFlops;
   return totalFlops;
 }
 
@@ -73,21 +69,16 @@ export function estimateModelSize(
   hidden_size: number,
   n_head: number,
   n_layer: number,
-  n_head_kv: number
+  n_head_kv?: number | null
 ): number {
-  // Word Embeddings
   let total_params = vocab_size * hidden_size;
-
-  // Self-attention Layers
+  const effective_n_head_kv = n_head_kv ?? n_head;
   total_params +=
-    n_layer * (n_head * hidden_size * 3 + n_head_kv * hidden_size * 2) * 2;
-
-  // Position-wise Feed-forward Networks
+    n_layer *
+    (n_head * hidden_size * 3 + effective_n_head_kv * hidden_size * 2) *
+    2;
   total_params += n_layer * hidden_size * 4;
-
-  // LayerNorm Layers
   total_params += n_layer * hidden_size * 2;
-
   return total_params;
 }
 
@@ -96,65 +87,53 @@ export function estimateInferenceTime(
   gpu_tflops: number,
   num_params: number,
   memory_bandwidth: number,
-  overhead_factor: number
+  overhead_factor: number,
+  bytes_per_param: number
 ): number {
-  // Convert GPU TFLOPs to FLOPs and divide by 2 because of FMA.
-  const gpu_flops: number = (gpu_tflops * 1e12) / 2;
-
-  // Estimate the compute time based on FLOPs.
-  const compute_time: number = flops / gpu_flops;
-
-  // Estimate the memory time.
-  // Convert memory bandwidth to bytes per second.
+  const gpu_flops_val: number = gpu_tflops * 10 ** 12;
+  const compute_time: number = (flops * 10 ** 9) / gpu_flops_val;
   const memory_bandwidth_bytes: number = memory_bandwidth * 1024 ** 3;
-  // Calculate bytes per parameter.
-  const bytes_per_param = 4;
   const memory_time: number =
     (num_params * bytes_per_param) / memory_bandwidth_bytes;
-
-  // The total inference time is the maximum of the compute time and the memory time,
-  // because the GPU can often do computation and memory operations simultaneously.
-  // Multiply by the overhead factor to account for software overhead.
   const inference_time: number =
     Math.max(compute_time, memory_time) * overhead_factor;
-
   return inference_time;
 }
 
 export function estimateTrainingCost(
-  flops: number,
+  inference_gflops_per_sequence: number,
   gpu_tflops: number,
   num_params: number,
   memory_bandwidth: number,
   overhead_factor: number,
   gpu_hourly_cost: number,
   num_epochs: number,
-  dataset_size: number
+  dataset_size: number,
+  model_precision_bits: number
 ): number {
-  // Estimate the time required to process one item.
+  const training_gflops_per_sequence = inference_gflops_per_sequence * 3;
+  const model_precision_bytes = model_precision_bits / 8;
+  const gradient_precision_bytes = model_precision_bits / 8;
+  const optimizer_states_bytes = 8;
+  const bytes_per_param_training_effective =
+    model_precision_bytes + gradient_precision_bytes + optimizer_states_bytes;
+
   const time_per_item: number = estimateInferenceTime(
-    flops,
+    training_gflops_per_sequence,
     gpu_tflops,
     num_params,
     memory_bandwidth,
-    overhead_factor
+    overhead_factor,
+    bytes_per_param_training_effective
   );
 
-  // Estimate the total training time.
   const total_time: number = time_per_item * dataset_size * num_epochs;
-
-  // Convert time to hours.
   const total_time_hours: number = total_time / 3600;
-
-  // Calculate the total cost.
   const total_cost: number = total_time_hours * gpu_hourly_cost;
-
   return total_cost;
 }
 
 export function recommendGPU(memoryInGB: number, flops: number): string {
-  // These thresholds and recommendations are highly simplified.
-  // Actual GPU requirements may vary based on many factors.
   if (memoryInGB <= 8 && flops <= 1e9) {
     return 'Minimum recommendation: NVIDIA GTX 1060 6GB';
   } else if (memoryInGB <= 11 && flops <= 2e9)
