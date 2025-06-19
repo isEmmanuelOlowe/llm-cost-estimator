@@ -39,23 +39,15 @@ export default function HomePage() {
   //Estimating the inference time
   const [calculatedGFlops, setCalculatedGFlops] = useState<number>(0); // For FLOPs estimator output
   const [selectedGpuName, setSelectedGpuName] = useState<string>(gpus[0].name);
-  const [gpuTFlops, setGpuTFlops] = useState<number>(
-    parseFloat(gpus[0].flops.split(' ')[0])
-  );
-  const [memoryBandwidth, setMemoryBandwidth] = useState<number>(
-    parseFloat(gpus[0].memory.split(' ')[0])
-  );
+  const [gpuTFlops, setGpuTFlops] = useState<number>(gpus[0].fp32_tflops);
+  const [memoryBandwidth, setMemoryBandwidth] = useState<number>(gpus[0].memory_bandwidth_gb_s); // Corrected typo setMemoryBaandwith
   const [overheadFactor, setOverheadFactor] = useState<number>(1.2);
   // numParams for inference estimator is taken from the general numParams state
 
   //Estimating cloud training cost
   const [selectedTrainingGpuName, setSelectedTrainingGpuName] = useState<string>(gpus[0].name);
-  const [trainingGpuTFlops, setTrainingGpuTFlops] = useState<number>(
-    parseFloat(gpus[0].flops.split(' ')[0])
-  );
-  const [trainingMemoryBandwidth, setTrainingMemoryBandwidth] = useState<number>(
-    parseFloat(gpus[0].memory.split(' ')[0])
-  );
+  const [trainingGpuTFlops, setTrainingGpuTFlops] = useState<number>(gpus[0].fp32_tflops);
+  const [trainingMemoryBandwidth, setTrainingMemoryBandwidth] = useState<number>(gpus[0].memory_bandwidth_gb_s);
   const [gpuHourlyCost, setGpuHourlyCost] = useState<number>(0);
   const [numEpochs, setNumEpochs] = useState<number>(0);
   const [datasetSize, setDatasetSize] = useState<number>(0);
@@ -106,14 +98,75 @@ export default function HomePage() {
           setModelError(false); // Reset error state at the beginning
 
           // Extract num_params
-          let params: number | undefined = model.num_params; // HuggingFace might provide it directly
+          let paramsExtracted = false;
+          const paramKeys = [
+            'num_parameters', 'n_params', 'num_params', 'model_params',
+            'total_params', 'N', 'n_parameters' // Added n_parameters as another common one
+          ];
 
-          if (params) {
-            setNumParams(params / 10 ** 9); // Assuming params are in raw numbers, convert to billions
-          } else {
-            // Try to calculate num_params if not directly available
-            if (model.architectures?.includes('T5ForConditionalGeneration')) {
-              // Ensure all necessary T5 config fields are present
+          for (const key of paramKeys) {
+            if (model[key] !== undefined && typeof model[key] === 'number') {
+              let val = model[key];
+              if (val === 0) { // Explicitly handle 0 if found directly
+                setNumParams(0);
+                paramsExtracted = true;
+                break;
+              }
+              // Heuristic: if value is very large, assume raw count. If small, assume billions.
+              if (val > 1000000) { // If > 1M, assume it's a raw count
+                setNumParams(val / 10 ** 9);
+                paramsExtracted = true;
+                break;
+              } else if (val > 0 && val < 1000) { // If > 0 and < 1k, assume it's already in billions
+                setNumParams(val);
+                paramsExtracted = true;
+                break;
+              }
+              // If val is between 1000 and 1000000, it's ambiguous without more context.
+              // For now, we'll only use it if it's clearly raw or clearly billions.
+              // Or, we can decide to treat moderately sized numbers as raw counts too.
+              // Let's refine: if a key is found, and it's not 0, assume it's the count.
+              // The heuristic for "already in billions" vs "raw" is tricky.
+              // For now, let's assume any of these direct keys, if non-zero, are raw counts.
+              // The user can manually adjust if the scale is misinterpreted.
+              // Re-evaluating the heuristic:
+              // If a direct key like 'num_parameters' is found, it's most likely the full raw count.
+              // Division by 10**9 will handle it. If it was accidentally in billions, it becomes very small.
+              // The original code just did `params / 10**9` if `model.num_params` was found.
+              // Let's stick to: if a direct key is found, assume it's the raw count.
+            }
+          }
+
+          // If params were not extracted from direct keys, then try calculation
+          if (!paramsExtracted) {
+            // Try to get num_params from a few common places first, assuming raw count
+            let rawParams: number | undefined = undefined;
+            const directRawParamKeys = ['num_parameters', 'n_params', 'num_params', 'total_params', 'N', 'n_parameters', 'model.num_parameters']; // model.num_parameters might be nested
+
+            for (const key of directRawParamKeys) {
+                let valToCheck = model[key];
+                if (key === 'model.num_parameters' && model.model && typeof model.model.num_parameters === 'number') { // Check nested common pattern
+                    valToCheck = model.model.num_parameters;
+                }
+
+                if (typeof valToCheck === 'number' && valToCheck > 0) {
+                    // Heuristic: if value > 1M, it's raw count. If < 1000, it's billions.
+                    // To simplify and be consistent with calculations: always assume direct keys are raw full counts.
+                    // If a config provides 'num_params: 7', it means 7 params, not 7B.
+                    // The UI input is in Billions, so it's better to be consistent.
+                    // Calculations from estimateModelSize are raw, then divided.
+                    // So, if we find a direct key, assume it's raw and divide.
+                    rawParams = valToCheck;
+                    setNumParams(rawParams / 10 ** 9);
+                    paramsExtracted = true;
+                    break;
+                }
+            }
+
+            if (!paramsExtracted) {
+              // Fallback to calculation
+              if (model.architectures?.includes('T5ForConditionalGeneration')) {
+                // Ensure all necessary T5 config fields are present
               if (model.d_model && model.vocab_size && model.num_layers && model.num_decoder_layers && model.d_ff && model.n_positions) {
                 params = estimateModelSizeT5({
                   d_model: model.d_model,
@@ -142,25 +195,33 @@ export default function HomePage() {
 
 
               if (hiddenSizeVal && numLayersVal && numHeadsVal && vocabSizeVal) {
-                params = estimateModelSize(
+                const estimatedRawParams = estimateModelSize(
                   vocabSizeVal,
                   hiddenSizeVal,
                   numHeadsVal,
                   numLayersVal,
-                  numHeadsKvVal // This could be undefined, estimateModelSize should handle it or be adjusted
+                  numHeadsKvVal
                 );
-                setNumParams(params / 10 ** 9);
+                if (estimatedRawParams > 0) {
+                    setNumParams(estimatedRawParams / 10 ** 9);
+                    paramsExtracted = true;
+                } else {
+                    console.error('Generic model size estimation resulted in 0 or negative params.');
+                    setModelError(true);
+                }
               } else {
                 console.error('Missing parameters for generic model size estimation from config:', model);
                 setModelError(true);
               }
             }
           }
+        } // End of `if (!paramsExtracted)` after direct key search
 
-          if (!params) {
-            console.error('Could not determine num_params');
+          if (!paramsExtracted) { // If still not extracted after direct keys and calculations
+            console.error('Could not determine num_params from config or calculation.');
             setModelError(true);
-            // Potentially set a specific error message for the UI here
+            // Optionally set numParams to 0 or a specific error indicator if needed
+            setNumParams(0);
           }
 
           // Extract other parameters with robust handling for different names
@@ -252,8 +313,7 @@ export default function HomePage() {
           className='btn btn-primary mt-2 w-full'
           onClick={() => setModel(modelId)}
         >
-          {' '}
-          Fetch Model{' '}
+          Fetch Model Details
         </button>
       </div>
       <div className='grid md:grid-cols-2'>
@@ -266,8 +326,8 @@ export default function HomePage() {
             <div className='form-control w-full max-w-xs mb-4 md:mb-0'>
               <label className='label'>
                 <span className='label-text'>Parameter Size</span>
-                <span className='label-text-alt'>billions</span>
-                <span className='tooltip tooltip-right' data-tip="Total number of parameters in the model, in billions. E.g., for a 7B model, enter 7.">
+                <span className='label-text-alt mr-1'> (billions)</span>
+                <span className='tooltip tooltip-right' data-tip="Total number of parameters in the model, in billions. E.g., for a 7B model, enter 7. This is typically fetched from the model's configuration.">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-info shrink-0 w-4 h-4 ml-1 cursor-pointer"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </span>
               </label>
@@ -569,14 +629,14 @@ export default function HomePage() {
                   const selectedGpu = gpus.find(gpu => gpu.name === selectedName);
                   if (selectedGpu) {
                     setSelectedTrainingGpuName(selectedName);
-                    setTrainingGpuTFlops(parseFloat(selectedGpu.flops.split(' ')[0]));
-                    setTrainingMemoryBandwidth(parseFloat(selectedGpu.memory.split(' ')[0]));
+                  setTrainingGpuTFlops(selectedGpu.fp32_tflops);
+                  setTrainingMemoryBandwidth(selectedGpu.memory_bandwidth_gb_s);
                   }
                 }}
               >
                 {gpus.map((gpu) => (
                   <option key={gpu.name} value={gpu.name}>
-                    {gpu.name} ({gpu.flops}, {gpu.memory})
+                  {gpu.name} (Memory: {gpu.memory_gb}GB, TFLOPs: {gpu.fp32_tflops}, BW: {gpu.memory_bandwidth_gb_s}GB/s)
                   </option>
                 ))}
               </select>
