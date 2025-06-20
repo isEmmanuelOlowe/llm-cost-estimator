@@ -1,27 +1,74 @@
 [
   {
-    "name": "GeForce RTX 3090",
-    "memory": "24 GB GDDR6X",
-    "flops": "35.6 TFLOPs"
+    "name": "NVIDIA GeForce RTX 3090",
+    "memory_gb": 24,
+    "fp32_tflops": 35.58,
+    "memory_bandwidth_gb_s": 936.2
   },
   {
-    "name": "GeForce RTX 3080",
-    "memory": "10 GB GDDR6X",
-    "flops": "29.7 TFLOPs"
+    "name": "NVIDIA GeForce RTX 3080 (10GB)",
+    "memory_gb": 10,
+    "fp32_tflops": 29.77,
+    "memory_bandwidth_gb_s": 760.3
   },
   {
-    "name": "GeForce RTX 3070",
-    "memory": "8 GB GDDR6",
-    "flops": "20.3 TFLOPs"
+    "name": "NVIDIA GeForce RTX 3070",
+    "memory_gb": 8,
+    "fp32_tflops": 20.31,
+    "memory_bandwidth_gb_s": 448.0
   },
   {
-    "name": "GeForce RTX 3060 Ti",
-    "memory": "8 GB GDDR6",
-    "flops": "16.2 TFLOPs"
+    "name": "NVIDIA GeForce RTX 3060 Ti",
+    "memory_gb": 8,
+    "fp32_tflops": 16.20,
+    "memory_bandwidth_gb_s": 448.0
   },
   {
-    "name": "GeForce RTX 3060",
-    "memory": "12 GB GDDR6",
-    "flops": "12.7 TFLOPs"
+    "name": "NVIDIA GeForce RTX 3060 (12GB)",
+    "memory_gb": 12,
+    "fp32_tflops": 12.74,
+    "memory_bandwidth_gb_s": 360.0
+  },
+  {
+    "name": "NVIDIA GeForce RTX 4090",
+    "memory_gb": 24,
+    "fp32_tflops": 82.58,
+    "memory_bandwidth_gb_s": 1008
+  },
+  {
+    "name": "NVIDIA GeForce RTX 4080",
+    "memory_gb": 16,
+    "fp32_tflops": 48.74,
+    "memory_bandwidth_gb_s": 716.8
+  },
+  {
+    "name": "NVIDIA GeForce RTX 4070 Ti",
+    "memory_gb": 12,
+    "fp32_tflops": 40.09,
+    "memory_bandwidth_gb_s": 504.2
+  },
+  {
+    "name": "NVIDIA H100 PCIe 80GB",
+    "memory_gb": 80,
+    "fp32_tflops": 60.0,
+    "memory_bandwidth_gb_s": 2000
+  },
+  {
+    "name": "NVIDIA A100 PCIe 80GB",
+    "memory_gb": 80,
+    "fp32_tflops": 19.5,
+    "memory_bandwidth_gb_s": 1935
+  },
+  {
+    "name": "NVIDIA A100 PCIe 40GB",
+    "memory_gb": 40,
+    "fp32_tflops": 19.5,
+    "memory_bandwidth_gb_s": 1555
+  },
+  {
+    "name": "NVIDIA RTX 6000 Ada",
+    "memory_gb": 48,
+    "fp32_tflops": 91.1,
+    "memory_bandwidth_gb_s": 960
   }
 ]
