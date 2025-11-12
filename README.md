@@ -1,19 +1,43 @@
 # LLM Cost Estimator
-  A project developed to predict the computational costs associated with training and inferencing large language models (LLMs). The tool utilizes various key model parameters such as FLOPs, number of parameters, memory bandwidth, and others to provide an accurate estimate of GPU usage, inference time, and overall training cost.
 
-## Features
+The LLM Cost Estimator is an interactive Next.js application that helps machine-learning practitioners quickly validate whether a large language model will fit into a particular GPU setup and how much it will cost to run. The calculator combines up-to-date GPU specifications, detailed VRAM breakdowns (weights, activations, KV cache and optimiser state), performance projections and cloud pricing guidance.
 
-- **GPU Memory Estimation**: Provide the number of parameters of an LLM and get an estimation of the total GPU memory required to run it.
-- **FLOPs Calculation**: Enter your model's architecture description (number of layers, sequence length, hidden dimensions, number of heads, etc.), and ProphetAI will output the estimated total FLOPs of the model.
-- **Inference Time Estimation**: ProphetAI can predict the inference time of your LLM on a specified GPU, factoring in memory bandwidth and software overhead.
-- **Training Cost Estimation**: By inputting the necessary details (including GPU hourly cost, number of epochs, and dataset size), you can receive an estimate of the overall cost of training your LLM.
+## Key capabilities
 
-## Limitations and Disclaimer
+- **Automatic Hugging Face introspection** – fetch a model configuration from the Hugging Face Hub and auto-populate parameter counts, hidden sizes, attention heads and precision defaults.
+- **Detailed VRAM analysis** – quantify memory consumption for model weights, activations, KV cache and optimiser state with a configurable execution mode (inference or training), precision, overhead factor and batch size.
+- **Hardware fit recommendations** – compare the required VRAM against a curated list of GPUs, highlight whether a selected GPU has enough headroom and propose the closest alternatives.
+- **Performance estimations** – estimate FLOPs per forward pass, tokens per second and milliseconds per token using the selected GPU’s compute throughput and an efficiency factor.
+- **Cloud cost calculator** – explore on-demand pricing across popular AWS, GCP, Azure and independent GPU providers, override hourly rates and receive a total cost projection for the planned runtime.
 
-The estimates provided are based on simplified models of computational requirements and costs. The actual requirements and costs can be higher due to a variety of factors not accounted for in these estimates, such as data loading time, network overhead, model serialization/deserialization time, potential additional costs like data transfer, storage, or CPU/RAM usage, and others.
+## Getting started
 
-Please use this tool as a rough guideline and always measure the actual requirements and costs by running your specific models on your target hardware and software stack.
+1. Install dependencies:
 
-## Contributions
+   ```bash
+   npm install
+   ```
 
-Contributions are welcome!
+2. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+3. Navigate to `http://localhost:3000` and search for a Hugging Face model such as `meta-llama/Llama-2-7b-hf`.
+
+## Testing
+
+Run the unit test suite to verify estimator calculations:
+
+```bash
+npm test
+```
+
+## Disclaimer
+
+The estimator uses analytical approximations of transformer memory footprints, throughput and pricing. Results should be treated as indicative; always validate with real workloads before committing to production deployments.
+
+## Contributing
+
+Pull requests that improve model coverage, pricing data or UX are very welcome. Please open an issue to discuss substantial changes before contributing.

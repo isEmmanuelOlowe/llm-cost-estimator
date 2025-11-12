@@ -1,146 +1,390 @@
-export function calculateMemory(numParams: number, bytes: number): number {
-  const bytesPerParam = bytes / 8;
-  const paramsInGB = (numParams * bytesPerParam) / 1024 ** 3;
-  return paramsInGB;
+import gpus from './gpus.json';
+
+export type PrecisionBits = 4 | 8 | 16 | 32;
+
+export type ExecutionMode = 'inference' | 'training';
+
+export type OptimizerType = 'none' | 'adam' | 'adamw' | 'adafactor' | 'lamb';
+
+export interface MemoryEstimationInput {
+  parameterCount: number; // Raw parameter count
+  weightPrecisionBits: PrecisionBits;
+  mode: ExecutionMode;
+  hiddenSize: number;
+  numLayers: number;
+  sequenceLength: number;
+  batchSize: number;
+  kvCachePrecisionBits?: PrecisionBits;
+  activationMultiplierOverride?: number;
+  optimizer?: OptimizerType;
+  overheadFactor?: number;
 }
 
-export function calculateNumParams(
-  numLayers: number,
-  seqLength: number,
-  hiddenDims: number
-): number {
-  const selfAttentionParams = 4 * numLayers * hiddenDims * hiddenDims;
-  const ffNetworkParams = 2 * numLayers * hiddenDims * hiddenDims * 4;
-  const positionalEncodingsParams = seqLength * hiddenDims;
-  const totalParams =
-    selfAttentionParams + ffNetworkParams + positionalEncodingsParams;
-  return totalParams;
+export interface MemoryBreakdown {
+  weightsGB: number;
+  activationsGB: number;
+  kvCacheGB: number;
+  optimizerGB: number;
+  baseTotalGB: number;
+  overheadGB: number;
+  totalGB: number;
 }
 
-interface Config {
-  vocab_size: number;
-  d_model: number;
-  n_head: number;
-  num_layers: number;
-  n_head_kv: number;
-  d_ff: number;
-  n_positions: number;
-  num_decoder_layers: number;
+export interface ThroughputInput {
+  parameterCount: number;
+  gpuTFlops: number;
+  efficiency?: number; // 0-1 multiplier capturing kernels/framework efficiency
 }
 
-export function estimateModelSizeT5(config: Config): number {
-  let totalParams = 0;
-
-  const encoderLayersParams =
-    config.d_model * config.vocab_size * 4 * config.d_model +
-    config.d_model * config.vocab_size * config.d_ff +
-    config.d_model * config.vocab_size * 2;
-  totalParams += config.num_layers * encoderLayersParams;
-
-  const decoderLayersParams =
-    config.d_model * config.vocab_size * 4 * config.d_model +
-    config.d_model * config.vocab_size * config.d_ff * 2 +
-    config.d_model * config.vocab_size * 3;
-  totalParams += config.num_decoder_layers * decoderLayersParams;
-
-  const embeddingParams =
-    config.vocab_size * config.d_model +
-    config.n_positions * config.d_model;
-  totalParams += embeddingParams;
-
-  return totalParams;
+export interface ThroughputEstimate {
+  tokensPerSecond: number;
+  millisecondsPerToken: number;
 }
 
-export function calculateFlops(
-  numLayers: number,
-  seqLength: number,
-  hiddenDims: number,
-  vocabSize: number
-): number {
-  const attentionMlpFlops =
-    10 * numLayers * seqLength * hiddenDims * hiddenDims;
-  const outputProjectionFlops = 2 * seqLength * hiddenDims * vocabSize;
-  const totalFlops = attentionMlpFlops + outputProjectionFlops;
-  return totalFlops;
+export interface CloudInstanceCostInput {
+  hourlyRate: number;
+  durationHours: number;
 }
 
-export function estimateModelSize(
-  vocab_size: number,
-  hidden_size: number,
-  n_head: number,
-  n_layer: number,
-  n_head_kv?: number | null
-): number {
-  let total_params = vocab_size * hidden_size;
-  const effective_n_head_kv = n_head_kv ?? n_head;
-  total_params +=
-    n_layer *
-    (n_head * hidden_size * 3 + effective_n_head_kv * hidden_size * 2) *
-    2;
-  total_params += n_layer * hidden_size * 4;
-  total_params += n_layer * hidden_size * 2;
-  return total_params;
+export interface CloudCostEstimate {
+  totalCost: number;
+  hourlyRate: number;
+  durationHours: number;
 }
 
-export function estimateInferenceTime(
-  flops: number,
-  gpu_tflops: number,
-  num_params: number,
-  memory_bandwidth: number,
-  overhead_factor: number,
-  bytes_per_param: number
-): number {
-  const gpu_flops_val: number = gpu_tflops * 10 ** 12;
-  const compute_time: number = (flops * 10 ** 9) / gpu_flops_val;
-  const memory_bandwidth_bytes: number = memory_bandwidth * 1024 ** 3;
-  const memory_time: number =
-    (num_params * bytes_per_param) / memory_bandwidth_bytes;
-  const inference_time: number =
-    Math.max(compute_time, memory_time) * overhead_factor;
-  return inference_time;
+export interface RecommendedGpu {
+  name: string;
+  memoryGB: number;
+  fp32TFlops: number;
+  memoryHeadroomGB: number;
 }
 
-export function estimateTrainingCost(
-  inference_gflops_per_sequence: number,
-  gpu_tflops: number,
-  num_params: number,
-  memory_bandwidth: number,
-  overhead_factor: number,
-  gpu_hourly_cost: number,
-  num_epochs: number,
-  dataset_size: number,
-  model_precision_bits: number
-): number {
-  const training_gflops_per_sequence = inference_gflops_per_sequence * 3;
-  const model_precision_bytes = model_precision_bits / 8;
-  const gradient_precision_bytes = model_precision_bits / 8;
-  const optimizer_states_bytes = 8;
-  const bytes_per_param_training_effective =
-    model_precision_bytes + gradient_precision_bytes + optimizer_states_bytes;
+export interface ArchitectureEstimate {
+  hiddenSize: number;
+  numLayers: number;
+  numHeads: number;
+  intermediateSize: number;
+}
 
-  const time_per_item: number = estimateInferenceTime(
-    training_gflops_per_sequence,
-    gpu_tflops,
-    num_params,
-    memory_bandwidth,
-    overhead_factor,
-    bytes_per_param_training_effective
+const BYTES_PER_GB = 1024 ** 3;
+
+const DEFAULT_ACTIVATION_MULTIPLIER: Record<ExecutionMode, number> = {
+  inference: 0.2,
+  training: 2,
+};
+
+const OPTIMIZER_MULTIPLIER: Record<OptimizerType, number> = {
+  none: 0,
+  adam: 4,
+  adamw: 4,
+  lamb: 4,
+  adafactor: 1.5,
+};
+
+const DEFAULT_OVERHEAD = 1.15;
+
+const LLAMA_STYLE_ARCHETYPES: Array<{
+  maxBillions: number;
+  hiddenSize: number;
+  numLayers: number;
+}> = [
+  { maxBillions: 1.5, hiddenSize: 2048, numLayers: 24 },
+  { maxBillions: 3.5, hiddenSize: 2560, numLayers: 28 },
+  { maxBillions: 8, hiddenSize: 4096, numLayers: 32 },
+  { maxBillions: 16, hiddenSize: 5120, numLayers: 40 },
+  { maxBillions: 40, hiddenSize: 6656, numLayers: 60 },
+  { maxBillions: 80, hiddenSize: 8192, numLayers: 80 },
+  { maxBillions: Number.POSITIVE_INFINITY, hiddenSize: 10240, numLayers: 96 },
+];
+
+export function bitsToBytes(bits: PrecisionBits): number {
+  return bits / 8;
+}
+
+export function estimateLlamaStyleArchitecture(
+  parameterCount: number
+): ArchitectureEstimate {
+  if (!Number.isFinite(parameterCount) || parameterCount <= 0) {
+    return { hiddenSize: 0, numLayers: 0, numHeads: 0, intermediateSize: 0 };
+  }
+
+  const paramsInBillions = parameterCount / 10 ** 9;
+  const archetype = LLAMA_STYLE_ARCHETYPES.find(
+    (entry) => paramsInBillions <= entry.maxBillions
   );
 
-  const total_time: number = time_per_item * dataset_size * num_epochs;
-  const total_time_hours: number = total_time / 3600;
-  const total_cost: number = total_time_hours * gpu_hourly_cost;
-  return total_cost;
+  if (!archetype) {
+    return { hiddenSize: 0, numLayers: 0, numHeads: 0, intermediateSize: 0 };
+  }
+
+  const { hiddenSize, numLayers } = archetype;
+  const numHeads = Math.max(1, Math.round(hiddenSize / 128));
+  const intermediateSize = hiddenSize * 4;
+
+  return { hiddenSize, numLayers, numHeads, intermediateSize };
 }
 
-export function recommendGPU(memoryInGB: number, flops: number): string {
-  if (memoryInGB <= 8 && flops <= 1e9) {
-    return 'Minimum recommendation: NVIDIA GTX 1060 6GB';
-  } else if (memoryInGB <= 11 && flops <= 2e9)
-    return 'Minimum recommendation: NVIDIA GTX 1080 Ti';
-  else if (memoryInGB <= 24 && flops <= 5e9) {
-    return 'Minimum recommendation: NVIDIA RTX 2080 Ti';
-  } else {
-    return 'Minimum recommendation: NVIDIA A100 or higher';
-  }
+export function calculateWeightMemoryGB(
+  parameterCount: number,
+  weightPrecisionBits: PrecisionBits
+): number {
+  if (parameterCount <= 0) return 0;
+  const bytes = parameterCount * bitsToBytes(weightPrecisionBits);
+  return bytes / BYTES_PER_GB;
 }
+
+export function calculateActivationMemoryGB(
+  parameterCount: number,
+  weightPrecisionBits: PrecisionBits,
+  mode: ExecutionMode,
+  activationMultiplierOverride?: number
+): number {
+  if (parameterCount <= 0) return 0;
+  const multiplier =
+    activationMultiplierOverride ?? DEFAULT_ACTIVATION_MULTIPLIER[mode];
+  const weightMemoryGB = calculateWeightMemoryGB(
+    parameterCount,
+    weightPrecisionBits
+  );
+  return weightMemoryGB * multiplier;
+}
+
+export function calculateKvCacheMemoryGB({
+  sequenceLength,
+  batchSize,
+  numLayers,
+  hiddenSize,
+  precisionBits,
+}: {
+  sequenceLength: number;
+  batchSize: number;
+  numLayers: number;
+  hiddenSize: number;
+  precisionBits: PrecisionBits;
+}): number {
+  if (
+    sequenceLength <= 0 ||
+    batchSize <= 0 ||
+    numLayers <= 0 ||
+    hiddenSize <= 0
+  ) {
+    return 0;
+  }
+
+  const bytesPerElement = bitsToBytes(precisionBits);
+  const kvPerToken = 2 * numLayers * hiddenSize * bytesPerElement;
+  const totalBytes = kvPerToken * sequenceLength * batchSize;
+  return totalBytes / BYTES_PER_GB;
+}
+
+export function calculateOptimizerMemoryGB(
+  parameterCount: number,
+  weightPrecisionBits: PrecisionBits,
+  optimizer: OptimizerType
+): number {
+  if (parameterCount <= 0) return 0;
+  const multiplier = OPTIMIZER_MULTIPLIER[optimizer] ?? 0;
+  const weightBytes = parameterCount * bitsToBytes(weightPrecisionBits);
+  const optimizerBytes = weightBytes * multiplier;
+  return optimizerBytes / BYTES_PER_GB;
+}
+
+export function estimateMemory({
+  parameterCount,
+  weightPrecisionBits,
+  mode,
+  hiddenSize,
+  numLayers,
+  sequenceLength,
+  batchSize,
+  kvCachePrecisionBits,
+  activationMultiplierOverride,
+  optimizer = mode === 'training' ? 'adamw' : 'none',
+  overheadFactor = DEFAULT_OVERHEAD,
+}: MemoryEstimationInput): MemoryBreakdown {
+  if (parameterCount < 0) {
+    throw new Error('parameterCount must be non-negative');
+  }
+
+  const weightsGB = calculateWeightMemoryGB(parameterCount, weightPrecisionBits);
+  const activationsGB = calculateActivationMemoryGB(
+    parameterCount,
+    weightPrecisionBits,
+    mode,
+    activationMultiplierOverride
+  );
+  const kvCacheGB =
+    mode === 'inference'
+      ? calculateKvCacheMemoryGB({
+          sequenceLength,
+          batchSize,
+          numLayers,
+          hiddenSize,
+          precisionBits: kvCachePrecisionBits ?? weightPrecisionBits,
+        })
+      : 0;
+  const optimizerGB =
+    mode === 'training'
+      ? calculateOptimizerMemoryGB(
+          parameterCount,
+          weightPrecisionBits,
+          optimizer
+        )
+      : 0;
+
+  const baseTotalGB = weightsGB + activationsGB + kvCacheGB + optimizerGB;
+  const overheadGB = baseTotalGB * (overheadFactor - 1);
+  const totalGB = baseTotalGB + overheadGB;
+
+  return {
+    weightsGB,
+    activationsGB,
+    kvCacheGB,
+    optimizerGB,
+    baseTotalGB,
+    overheadGB,
+    totalGB,
+  };
+}
+
+export function estimateThroughput({
+  parameterCount,
+  gpuTFlops,
+  efficiency = 0.3,
+}: ThroughputInput): ThroughputEstimate {
+  if (parameterCount <= 0 || gpuTFlops <= 0 || efficiency <= 0) {
+    return { tokensPerSecond: 0, millisecondsPerToken: 0 };
+  }
+
+  const flopsPerToken = parameterCount * 2; // Two matmuls per token approx
+  const effectiveFlopsPerSecond = gpuTFlops * 10 ** 12 * efficiency;
+  const tokensPerSecond = effectiveFlopsPerSecond / flopsPerToken;
+  const millisecondsPerToken = tokensPerSecond
+    ? (1000 / tokensPerSecond)
+    : 0;
+
+  return {
+    tokensPerSecond,
+    millisecondsPerToken,
+  };
+}
+
+export function estimateCloudCost({
+  hourlyRate,
+  durationHours,
+}: CloudInstanceCostInput): CloudCostEstimate {
+  if (hourlyRate < 0 || durationHours < 0) {
+    throw new Error('hourlyRate and durationHours must be non-negative');
+  }
+
+  return {
+    hourlyRate,
+    durationHours,
+    totalCost: hourlyRate * durationHours,
+  };
+}
+
+export function recommendGpus(
+  requiredMemoryGB: number,
+  maxResults = 3
+): RecommendedGpu[] {
+  if (requiredMemoryGB <= 0) {
+    return [];
+  }
+
+  return gpus
+    .map((gpu) => ({
+      name: gpu.name,
+      memoryGB: gpu.memory_gb,
+      fp32TFlops: gpu.fp32_tflops,
+      memoryHeadroomGB: gpu.memory_gb - requiredMemoryGB,
+    }))
+    .filter((gpu) => gpu.memoryHeadroomGB >= 0)
+    .sort((a, b) => a.memoryHeadroomGB - b.memoryHeadroomGB)
+    .slice(0, maxResults);
+}
+
+export interface ModelFlopInput {
+  numLayers: number;
+  hiddenSize: number;
+  sequenceLength: number;
+  vocabSize: number;
+}
+
+export interface TransformerConfig {
+  vocabSize: number;
+  hiddenSize: number;
+  numLayers: number;
+  numAttentionHeads: number;
+  intermediateSize?: number;
+  numKeyValueHeads?: number;
+}
+
+export function estimateDecoderFlops({
+  numLayers,
+  hiddenSize,
+  sequenceLength,
+  vocabSize,
+}: ModelFlopInput): number {
+  if (
+    numLayers <= 0 ||
+    hiddenSize <= 0 ||
+    sequenceLength <= 0 ||
+    vocabSize <= 0
+  ) {
+    return 0;
+  }
+
+  const attentionFlops = 4 * numLayers * sequenceLength * hiddenSize ** 2;
+  const mlpFlops = 8 * numLayers * sequenceLength * hiddenSize ** 2;
+  const projectionFlops = 2 * sequenceLength * hiddenSize * vocabSize;
+  return attentionFlops + mlpFlops + projectionFlops;
+}
+
+export function estimateTransformerParameters({
+  vocabSize,
+  hiddenSize,
+  numLayers,
+  numAttentionHeads,
+  intermediateSize,
+  numKeyValueHeads,
+}: TransformerConfig): number {
+  if (vocabSize <= 0 || hiddenSize <= 0 || numLayers <= 0 || numAttentionHeads <= 0) {
+    return 0;
+  }
+
+  const kvHeads = numKeyValueHeads ?? numAttentionHeads;
+  const kvHeadDim = hiddenSize / kvHeads;
+
+  const embeddingParams = vocabSize * hiddenSize;
+
+  const qkvParams =
+    hiddenSize * hiddenSize + // Query
+    hiddenSize * kvHeadDim * kvHeads * 2; // Key + Value (supports GQA)
+  const attentionOutputParams = hiddenSize * hiddenSize;
+  const attnParamsPerLayer = qkvParams + attentionOutputParams;
+
+  const effectiveIntermediate =
+    intermediateSize && intermediateSize > 0
+      ? intermediateSize
+      : hiddenSize * 4;
+  const mlpHidden = effectiveIntermediate;
+  const mlpParamsPerLayer = hiddenSize * mlpHidden * 2;
+  const normParamsPerLayer = hiddenSize * 2;
+
+  const layerParams =
+    attnParamsPerLayer * 2 + // weights and biases approximated
+    mlpParamsPerLayer +
+    normParamsPerLayer * 2;
+
+  return embeddingParams + numLayers * layerParams;
+}
+
+export function calculateMemoryFromBillions(
+  paramsInBillions: number,
+  weightPrecisionBits: PrecisionBits
+): number {
+  if (paramsInBillions <= 0) return 0;
+  return calculateWeightMemoryGB(paramsInBillions * 10 ** 9, weightPrecisionBits);
+}
+
