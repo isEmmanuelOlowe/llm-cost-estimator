@@ -453,46 +453,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className='mt-6 grid gap-3 sm:grid-cols-3'>
-                <div className='rounded-lg border border-base-300 bg-base-200 p-4 text-sm'>
-                  <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                    Model weights
-                  </p>
-                  <p className='mt-2 text-lg font-bold text-primary'>
-                    {formatMemory(memoryBreakdown.weightsGB)}
-                  </p>
-                  <p className='text-xs text-base-content/60'>
-                    {weightBits}-bit across {formatNumber(parameterBillions, 2)}B params
-                  </p>
-                </div>
-                <div className='rounded-lg border border-base-300 bg-base-200 p-4 text-sm'>
-                  <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                    {mode === 'inference' ? 'KV cache' : 'Activations'}
-                  </p>
-                  <p className='mt-2 text-lg font-bold text-primary'>
-                    {mode === 'inference'
-                      ? formatMemory(memoryBreakdown.kvCacheGB)
-                      : formatMemory(memoryBreakdown.activationsGB)}
-                  </p>
-                  <p className='text-xs text-base-content/60'>
-                    {mode === 'inference'
-                      ? `${sequenceLength} tokens × ${effectiveBatchSize} streams @ ${kvBits}-bit`
-                      : 'Backprop activations using default heuristics'}
-                  </p>
-                </div>
-                <div className='rounded-lg border border-base-300 bg-base-200 p-4 text-sm'>
-                  <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                    Total VRAM (incl. overhead)
-                  </p>
-                  <p className='mt-2 text-lg font-bold text-primary'>
-                    {formatMemory(memoryBreakdown.totalGB)}
-                  </p>
-                  <p className='text-xs text-base-content/60'>
-                    {formatNumber(overheadFactor, 2)}× framework headroom applied
-                  </p>
-                </div>
-              </div>
-
               <div className='mt-6 grid gap-4 md:grid-cols-2'>
                 <label className='flex flex-col text-sm'>
                   Parameter count (billions)
@@ -587,7 +547,7 @@ export default function HomePage() {
               {mode === 'inference' ? (
                 <div className='mt-6 space-y-2 text-sm'>
                   <span className='font-semibold text-base-content/80'>
-                    Concurrent streams
+                    Concurrent users
                   </span>
                   <div className='flex items-center gap-3'>
                     <input
@@ -604,7 +564,8 @@ export default function HomePage() {
                     <span className='badge badge-outline'>{concurrentUsers}</span>
                   </div>
                   <p className='text-xs text-base-content/70'>
-                    KV cache grows linearly with concurrent sequences and context length.
+                    KV cache memory scales linearly with concurrent sequences
+                    and context length.
                   </p>
                 </div>
               ) : (
@@ -626,11 +587,11 @@ export default function HomePage() {
             <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
               <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
                 <div>
-                  <h2 className='text-xl font-semibold'>Architecture extras</h2>
+                  <h2 className='text-xl font-semibold'>Architecture assumptions</h2>
                   <p className='mt-1 text-sm text-base-content/70'>
                     {architectureMode === 'auto'
-                      ? 'Hidden size, layer count and heads follow LLaMA-style scaling heuristics. Switch to manual to tailor them to a specific checkpoint.'
-                      : 'You are overriding the heuristics. Adjust these numbers to mirror the model you plan to deploy.'}
+                      ? 'Using LLaMA-style scaling heuristics derived from parameter count. Enable manual mode to match a specific checkpoint.'
+                      : 'Provide exact architecture values to refine KV cache and activation estimates.'}
                   </p>
                 </div>
                 <div className='join self-start'>
@@ -655,37 +616,37 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className='mt-6 space-y-4 rounded-lg border border-dashed border-base-300 bg-base-200/60 p-4'>
-                <dl className='grid gap-4 text-sm sm:grid-cols-2'>
-                  <div>
-                    <dt className='font-semibold text-base-content/70'>Hidden size</dt>
-                    <dd className='text-lg font-semibold'>
-                      {effectiveHiddenSize || '–'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className='font-semibold text-base-content/70'>Layers</dt>
-                    <dd className='text-lg font-semibold'>
-                      {effectiveNumLayers || '–'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className='font-semibold text-base-content/70'>Attention heads</dt>
-                    <dd className='text-lg font-semibold'>
-                      {effectiveNumHeads || '–'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className='font-semibold text-base-content/70'>Feed-forward size</dt>
-                    <dd className='text-lg font-semibold'>
-                      {effectiveIntermediateSize || '–'}
-                    </dd>
-                  </div>
-                </dl>
+              <dl className='mt-6 grid gap-4 text-sm sm:grid-cols-2'>
+                <div>
+                  <dt className='font-semibold text-base-content/70'>Hidden size</dt>
+                  <dd className='text-lg font-semibold'>
+                    {effectiveHiddenSize || '–'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-base-content/70'>Layers</dt>
+                  <dd className='text-lg font-semibold'>
+                    {effectiveNumLayers || '–'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-base-content/70'>Attention heads</dt>
+                  <dd className='text-lg font-semibold'>
+                    {effectiveNumHeads || '–'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-base-content/70'>Feed-forward size</dt>
+                  <dd className='text-lg font-semibold'>
+                    {effectiveIntermediateSize || '–'}
+                  </dd>
+                </div>
+              </dl>
 
-                {architectureMode === 'manual' && (
-                  <div className='grid gap-4 pt-2 text-sm md:grid-cols-2'>
-                    <label className='flex flex-col'>
+              {architectureMode === 'manual' && (
+                <div className='mt-6 space-y-4'>
+                  <div className='grid gap-4 md:grid-cols-2'>
+                    <label className='flex flex-col text-sm'>
                       Hidden size
                       <input
                         className='input input-bordered mt-1'
@@ -697,7 +658,7 @@ export default function HomePage() {
                         }
                       />
                     </label>
-                    <label className='flex flex-col'>
+                    <label className='flex flex-col text-sm'>
                       Layers
                       <input
                         className='input input-bordered mt-1'
@@ -709,7 +670,7 @@ export default function HomePage() {
                         }
                       />
                     </label>
-                    <label className='flex flex-col'>
+                    <label className='flex flex-col text-sm'>
                       Attention heads
                       <input
                         className='input input-bordered mt-1'
@@ -721,7 +682,7 @@ export default function HomePage() {
                         }
                       />
                     </label>
-                    <label className='flex flex-col'>
+                    <label className='flex flex-col text-sm'>
                       Feed-forward size
                       <input
                         className='input input-bordered mt-1'
@@ -732,28 +693,31 @@ export default function HomePage() {
                         }
                         value={manualIntermediateSize || ''}
                         onChange={(event) =>
-                          setManualIntermediateSize(Number(event.target.value) || 0)
-                        }
-                      />
-                    </label>
-                    <label className='flex flex-col md:col-span-2'>
-                      Vocabulary size (for FLOPs)
-                      <input
-                        className='input input-bordered mt-1'
-                        type='number'
-                        min='0'
-                        value={vocabSize}
-                        onChange={(event) =>
-                          setVocabSize(Number(event.target.value) || 0)
+                          setManualIntermediateSize(
+                            Number(event.target.value) || 0
+                          )
                         }
                       />
                     </label>
                   </div>
-                )}
-              </div>
+                  <label className='flex flex-col text-sm'>
+                    Vocabulary size (for FLOPs)
+                    <input
+                      className='input input-bordered mt-1'
+                      type='number'
+                      min='0'
+                      value={vocabSize}
+                      onChange={(event) =>
+                        setVocabSize(Number(event.target.value) || 0)
+                      }
+                    />
+                  </label>
+                </div>
+              )}
               {architectureMode === 'auto' && (
-                <p className='mt-4 rounded-lg bg-base-200 px-3 py-2 text-xs text-base-content/70'>
-                  Hidden size, depth and heads are prefilled from LLaMA scaling tables. Override them when using a custom architecture.
+                <p className='mt-5 rounded-lg bg-base-200 px-3 py-2 text-xs text-base-content/70'>
+                  Hidden size and depth follow public LLaMA scaling heuristics.
+                  Switch to manual mode to match custom architectures.
                 </p>
               )}
             </div>
@@ -765,7 +729,7 @@ export default function HomePage() {
               <p className='mt-1 text-sm text-base-content/70'>
                 {mode === 'inference'
                   ? `Assumes ${effectiveBatchSize} concurrent ${
-                      effectiveBatchSize === 1 ? 'stream' : 'streams'
+                      effectiveBatchSize === 1 ? 'user' : 'users'
                     } at ${sequenceLength} tokens.`
                   : `Assumes a global batch size of ${effectiveBatchSize} sequences.`}
               </p>
