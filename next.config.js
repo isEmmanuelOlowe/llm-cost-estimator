@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+const isProd = process.env.NODE_ENV === 'production';
+const baseName = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = isProd ? baseName : '';
+const assetPrefix = isProd && baseName ? `${baseName}/` : undefined;
+
 const nextConfig = {
   eslint: {
     dirs: ['src'],
@@ -7,12 +12,14 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
 
-  // Uncoment to add domain whitelist
-  // images: {
-  //   domains: [
-  //     'res.cloudinary.com',
-  //   ],
-  // },
+  output: 'export',
+  basePath,
+  assetPrefix,
+  trailingSlash: true,
+
+  images: {
+    unoptimized: true,
+  },
 
   // SVGR
   webpack(config) {
