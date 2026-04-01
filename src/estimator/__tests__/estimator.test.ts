@@ -12,6 +12,7 @@ import {
   estimateThroughput,
   estimateTransformerParameters,
   recommendGpus,
+  resolveEffectiveParameterCount,
 } from '../estimator';
 
 describe('Estimator utilities', () => {
@@ -155,6 +156,15 @@ describe('Estimator utilities', () => {
 
     expect(sevenBLike / 10 ** 9).toBeCloseTo(7.312244736, 8);
     expect(sevenBLike).toBeGreaterThan(7 * 10 ** 9);
+  });
+
+  it('prefers active parameters for MoE-aware throughput inputs', () => {
+    expect(resolveEffectiveParameterCount(80 * 10 ** 9, 3 * 10 ** 9)).toBe(
+      3 * 10 ** 9,
+    );
+    expect(resolveEffectiveParameterCount(27 * 10 ** 9, null)).toBe(
+      27 * 10 ** 9,
+    );
   });
 
   it('derives a llama-style architecture from parameter counts', () => {

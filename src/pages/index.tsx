@@ -9,6 +9,7 @@ import Seo from '@/components/Seo';
 
 import cloudInstances from '@/estimator/cloud-instances.json';
 import {
+  EstimateClassification,
   estimateCloudCost,
   estimateDecoderFlops,
   estimateLlamaStyleArchitecture,
@@ -19,6 +20,7 @@ import {
   MemoryBreakdown,
   PrecisionBits,
   recommendGpus,
+  resolveEffectiveParameterCount,
 } from '@/estimator/estimator';
 import gpus from '@/estimator/gpus.json';
 
@@ -34,6 +36,7 @@ interface ModelMetadata {
   sequenceLength?: number;
   vocabSize?: number;
   dtypeBits?: PrecisionBits;
+  parameterSource?: 'explicit' | 'estimated';
 }
 
 type ModelPreset = (typeof modelPresets)[number];
@@ -41,6 +44,12 @@ type ModelPreset = (typeof modelPresets)[number];
 const DEFAULT_MODEL_ID = 'meta-llama/Llama-2-7b-hf';
 
 const bitsOptions: PrecisionBits[] = [32, 16, 8, 4];
+
+function classificationBadgeClass(
+  classification: EstimateClassification,
+): string {
+  return classification === 'exact' ? 'badge-success' : 'badge-warning';
+}
 
 function safeNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -98,6 +107,9 @@ export default function HomePage() {
   const [customHourlyRate, setCustomHourlyRate] = useState<number | ''>('');
   const [modelError, setModelError] = useState<string | null>(null);
   const [isLoadingModel, setIsLoadingModel] = useState<boolean>(false);
+  const [parameterSource, setParameterSource] = useState<
+    'manual' | 'catalog' | 'huggingface-config' | 'estimated-from-architecture'
+  >('manual');
   const selectedPreset = useMemo(
     () => modelPresets.find((preset) => preset.id === modelId),
     [modelId],
@@ -265,11 +277,22 @@ export default function HomePage() {
     }
 
     return estimateThroughput({
-      parameterCount,
+      parameterCount: resolveEffectiveParameterCount(
+        parameterCount,
+        parameterSource === 'catalog'
+          ? selectedPreset?.activeParameterCount
+          : null,
+      ),
       gpuTFlops: selectedGpu?.fp32_tflops ?? 0,
       efficiency,
     });
-  }, [parameterCount, selectedGpu, efficiency]);
+  }, [
+    parameterCount,
+    parameterSource,
+    selectedGpu,
+    efficiency,
+    selectedPreset,
+  ]);
 
   const hourlyRate = useMemo(() => {
     if (typeof customHourlyRate === 'number' && customHourlyRate > 0) {
@@ -297,6 +320,11 @@ export default function HomePage() {
   const applyModelMetadata = useCallback((metadata: ModelMetadata) => {
     if (metadata.parameterCount && metadata.parameterCount > 0) {
       setParameterBillions(metadata.parameterCount / 10 ** 9);
+    }
+    if (metadata.parameterSource === 'estimated') {
+      setParameterSource('estimated-from-architecture');
+    } else if (metadata.parameterSource === 'explicit') {
+      setParameterSource('huggingface-config');
     }
 
     const hasArchitecture = Boolean(
@@ -335,6 +363,7 @@ export default function HomePage() {
     (preset: ModelPreset) => {
       setModelId(preset.id);
       setModelError(null);
+      setParameterSource('catalog');
       applyModelMetadata({
         parameterCount: preset.parameterCount,
         hiddenSize: preset.hiddenSize ?? 0,
@@ -546,6 +575,17 @@ export default function HomePage() {
               <dd className='text-lg font-bold'>
                 {formatNumber(parameterBillions, 3)} B
               </dd>
+              <span
+                className={`badge badge-sm mt-2 ${classificationBadgeClass(
+                  parameterSource === 'estimated-from-architecture'
+                    ? 'heuristic'
+                    : 'exact',
+                )}`}
+              >
+                {parameterSource === 'estimated-from-architecture'
+                  ? 'Heuristic estimate'
+                  : 'Exact / sourced value'}
+              </span>
             </div>
             <div>
               <dt className='font-semibold text-base-content/70'>
@@ -572,6 +612,22 @@ export default function HomePage() {
                     Size weights and KV cache instantly from core workload
                     inputs.
                   </p>
+                  <div className='mt-2 flex flex-wrap gap-2 text-xs'>
+                    <span
+                      className={`badge badge-sm ${classificationBadgeClass(
+                        'exact',
+                      )}`}
+                    >
+                      Weights/KV: exact arithmetic
+                    </span>
+                    <span
+                      className={`badge badge-sm ${classificationBadgeClass(
+                        'heuristic',
+                      )}`}
+                    >
+                      Activations/overhead: heuristic
+                    </span>
+                  </div>
                 </div>
                 <div className='join self-start'>
                   <button
@@ -604,9 +660,10 @@ export default function HomePage() {
                     min='0'
                     step='0.1'
                     value={parameterBillions}
-                    onChange={(event) =>
-                      setParameterBillions(Number(event.target.value) || 0)
-                    }
+                    onChange={(event) => {
+                      setParameterSource('manual');
+                      setParameterBillions(Number(event.target.value) || 0);
+                    }}
                   />
                 </label>
                 <label className='flex flex-col text-sm'>
@@ -739,6 +796,17 @@ export default function HomePage() {
                       ? 'Using LLaMA-style scaling heuristics derived from parameter count. Enable manual mode to match a specific checkpoint.'
                       : 'Provide exact architecture values to refine KV cache and activation estimates.'}
                   </p>
+                  <div className='mt-2'>
+                    <span
+                      className={`badge badge-sm ${classificationBadgeClass(
+                        architectureMode === 'manual' ? 'exact' : 'heuristic',
+                      )}`}
+                    >
+                      {architectureMode === 'manual'
+                        ? 'Manual architecture override'
+                        : 'Heuristic architecture'}
+                    </span>
+                  </div>
                 </div>
                 <div className='join self-start'>
                   <button
@@ -887,6 +955,12 @@ export default function HomePage() {
                     } at ${sequenceLength} tokens.`
                   : `Assumes a global batch size of ${effectiveBatchSize} sequences.`}
               </p>
+              <p className='mt-2 text-xs text-base-content/70'>
+                Weight memory and KV cache are exact arithmetic from your
+                inputs. Activations, optimizer state, total VRAM, fit checks,
+                and GPU recommendations are heuristic estimates because they
+                depend on runtime behavior and overhead assumptions.
+              </p>
               <div className='mt-4 grid gap-3 text-sm'>
                 <div className='flex items-center justify-between'>
                   <span>Model weights</span>
@@ -991,6 +1065,13 @@ export default function HomePage() {
 
             <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
               <h2 className='text-xl font-semibold'>Performance</h2>
+              <p className='mt-2 text-xs text-base-content/70'>
+                All performance outputs below are heuristic estimates. They use
+                a simplified compute model and
+                {selectedPreset?.activeParameterCount
+                  ? ' prefer active parameters for the selected MoE-style preset.'
+                  : ' default to total parameters when no active-parameter metadata is available.'}
+              </p>
               <div className='mt-4 grid gap-4 text-sm md:grid-cols-2'>
                 <label className='flex flex-col'>
                   Kernel efficiency
@@ -1046,6 +1127,10 @@ export default function HomePage() {
 
             <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
               <h2 className='text-xl font-semibold'>Cloud cost projection</h2>
+              <p className='mt-2 text-xs text-base-content/70'>
+                Cloud cost is exact arithmetic from hourly rate × runtime. It
+                does not include hidden provider fees outside the selected rate.
+              </p>
               <div className='mt-4 grid gap-4 text-sm md:grid-cols-2'>
                 <label className='flex flex-col'>
                   Cloud instance
@@ -1098,7 +1183,7 @@ export default function HomePage() {
                     ${formatNumber(hourlyRate, 2)}
                   </p>
                   <p>
-                    <span className='font-semibold'>Estimated cost:</span> $
+                    <span className='font-semibold'>Projected cost:</span> $
                     {formatNumber(costEstimate.totalCost, 2)}
                   </p>
                 </div>
@@ -1165,6 +1250,9 @@ function parseModelConfig(config: Record<string, unknown>): ModelMetadata {
   const vocabSize = safeNumber(config.vocab_size);
   const kvHeads =
     safeNumber(config.num_key_value_heads) ?? safeNumber(config.n_head_kv);
+  let parameterSource: ModelMetadata['parameterSource'] = parameterCount
+    ? 'explicit'
+    : undefined;
 
   if (!parameterCount && hiddenSize && numLayers && numHeads && vocabSize) {
     parameterCount = estimateTransformerParameters({
@@ -1175,6 +1263,7 @@ function parseModelConfig(config: Record<string, unknown>): ModelMetadata {
       intermediateSize,
       numKeyValueHeads: kvHeads ?? undefined,
     });
+    parameterSource = 'estimated';
   }
 
   const dtypeRaw = config.torch_dtype as string | undefined;
@@ -1206,5 +1295,6 @@ function parseModelConfig(config: Record<string, unknown>): ModelMetadata {
     sequenceLength: sequenceLength ?? undefined,
     vocabSize: vocabSize ?? undefined,
     dtypeBits,
+    parameterSource,
   };
 }

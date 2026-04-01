@@ -6,6 +6,8 @@ export type ExecutionMode = 'inference' | 'training';
 
 export type OptimizerType = 'none' | 'adam' | 'adamw' | 'adafactor' | 'lamb';
 
+export type EstimateClassification = 'exact' | 'heuristic';
+
 export interface MemoryEstimationInput {
   parameterCount: number; // Raw parameter count
   weightPrecisionBits: PrecisionBits;
@@ -64,6 +66,17 @@ export interface ArchitectureEstimate {
   numLayers: number;
   numHeads: number;
   intermediateSize: number;
+}
+
+export function resolveEffectiveParameterCount(
+  parameterCount: number,
+  activeParameterCount?: number | null,
+): number {
+  if (activeParameterCount && activeParameterCount > 0) {
+    return activeParameterCount;
+  }
+
+  return parameterCount;
 }
 
 const BYTES_PER_GB = 1024 ** 3;
