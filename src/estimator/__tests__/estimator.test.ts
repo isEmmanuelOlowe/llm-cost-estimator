@@ -54,6 +54,7 @@ describe('Estimator utilities', () => {
     });
     expect(kv).toBeGreaterThan(1);
     expect(kv).toBeLessThan(3);
+    expect(kv).toBeCloseTo(2, 5);
   });
 
   it('computes optimizer memory for adam', () => {
@@ -87,6 +88,7 @@ describe('Estimator utilities', () => {
 
     expect(throughput.tokensPerSecond).toBeGreaterThan(0);
     expect(throughput.millisecondsPerToken).toBeGreaterThan(0);
+    expect(throughput.tokensPerSecond).toBeCloseTo(857.1428571428571, 8);
   });
 
   it('estimates cloud cost', () => {
@@ -108,6 +110,7 @@ describe('Estimator utilities', () => {
       vocabSize: 32000,
     });
     expect(flops).toBeGreaterThan(0);
+    expect(flops / 10 ** 12).toBeCloseTo(13.731010445312, 8);
   });
 
   it('estimates transformer parameters when not explicitly provided', () => {
@@ -119,6 +122,39 @@ describe('Estimator utilities', () => {
     });
 
     expect(params).toBeGreaterThan(0);
+  });
+
+  it('matches scratch-validated numeric checks for exact arithmetic paths', () => {
+    expect(calculateWeightMemoryGB(7 * 10 ** 9, 16)).toBeCloseTo(
+      13.0385160446167,
+      8,
+    );
+    expect(
+      calculateKvCacheMemoryGB({
+        sequenceLength: 4096,
+        batchSize: 1,
+        numLayers: 40,
+        hiddenSize: 5120,
+        precisionBits: 16,
+      }),
+    ).toBeCloseTo(3.125, 8);
+    expect(calculateOptimizerMemoryGB(3 * 10 ** 9, 16, 'adamw')).toBeCloseTo(
+      22.351741790771484,
+      8,
+    );
+  });
+
+  it('treats fallback parameter estimation as heuristic rather than exact', () => {
+    const sevenBLike = estimateTransformerParameters({
+      vocabSize: 32000,
+      hiddenSize: 4096,
+      numLayers: 32,
+      numAttentionHeads: 32,
+      intermediateSize: 11008,
+    });
+
+    expect(sevenBLike / 10 ** 9).toBeCloseTo(7.312244736, 8);
+    expect(sevenBLike).toBeGreaterThan(7 * 10 ** 9);
   });
 
   it('derives a llama-style architecture from parameter counts', () => {

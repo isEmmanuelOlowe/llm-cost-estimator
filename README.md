@@ -40,9 +40,12 @@ Run the full local verification flow:
 npm run lint:strict
 npm run typecheck
 npm test -- --runInBand
+npm run validate:math
 npm run build
 npm run verify:export
 ```
+
+The repo baseline is currently Node `24.14.1` with npm `11.11.0` or newer.
 
 ## Deployment
 
