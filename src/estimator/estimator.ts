@@ -102,7 +102,7 @@ export function bitsToBytes(bits: PrecisionBits): number {
 }
 
 export function estimateLlamaStyleArchitecture(
-  parameterCount: number
+  parameterCount: number,
 ): ArchitectureEstimate {
   if (!Number.isFinite(parameterCount) || parameterCount <= 0) {
     return { hiddenSize: 0, numLayers: 0, numHeads: 0, intermediateSize: 0 };
@@ -110,7 +110,7 @@ export function estimateLlamaStyleArchitecture(
 
   const paramsInBillions = parameterCount / 10 ** 9;
   const archetype = LLAMA_STYLE_ARCHETYPES.find(
-    (entry) => paramsInBillions <= entry.maxBillions
+    (entry) => paramsInBillions <= entry.maxBillions,
   );
 
   if (!archetype) {
@@ -126,7 +126,7 @@ export function estimateLlamaStyleArchitecture(
 
 export function calculateWeightMemoryGB(
   parameterCount: number,
-  weightPrecisionBits: PrecisionBits
+  weightPrecisionBits: PrecisionBits,
 ): number {
   if (parameterCount <= 0) return 0;
   const bytes = parameterCount * bitsToBytes(weightPrecisionBits);
@@ -137,14 +137,14 @@ export function calculateActivationMemoryGB(
   parameterCount: number,
   weightPrecisionBits: PrecisionBits,
   mode: ExecutionMode,
-  activationMultiplierOverride?: number
+  activationMultiplierOverride?: number,
 ): number {
   if (parameterCount <= 0) return 0;
   const multiplier =
     activationMultiplierOverride ?? DEFAULT_ACTIVATION_MULTIPLIER[mode];
   const weightMemoryGB = calculateWeightMemoryGB(
     parameterCount,
-    weightPrecisionBits
+    weightPrecisionBits,
   );
   return weightMemoryGB * multiplier;
 }
@@ -180,7 +180,7 @@ export function calculateKvCacheMemoryGB({
 export function calculateOptimizerMemoryGB(
   parameterCount: number,
   weightPrecisionBits: PrecisionBits,
-  optimizer: OptimizerType
+  optimizer: OptimizerType,
 ): number {
   if (parameterCount <= 0) return 0;
   const multiplier = OPTIMIZER_MULTIPLIER[optimizer] ?? 0;
@@ -206,12 +206,15 @@ export function estimateMemory({
     throw new Error('parameterCount must be non-negative');
   }
 
-  const weightsGB = calculateWeightMemoryGB(parameterCount, weightPrecisionBits);
+  const weightsGB = calculateWeightMemoryGB(
+    parameterCount,
+    weightPrecisionBits,
+  );
   const activationsGB = calculateActivationMemoryGB(
     parameterCount,
     weightPrecisionBits,
     mode,
-    activationMultiplierOverride
+    activationMultiplierOverride,
   );
   const kvCacheGB =
     mode === 'inference'
@@ -228,7 +231,7 @@ export function estimateMemory({
       ? calculateOptimizerMemoryGB(
           parameterCount,
           weightPrecisionBits,
-          optimizer
+          optimizer,
         )
       : 0;
 
@@ -259,9 +262,7 @@ export function estimateThroughput({
   const flopsPerToken = parameterCount * 2; // Two matmuls per token approx
   const effectiveFlopsPerSecond = gpuTFlops * 10 ** 12 * efficiency;
   const tokensPerSecond = effectiveFlopsPerSecond / flopsPerToken;
-  const millisecondsPerToken = tokensPerSecond
-    ? (1000 / tokensPerSecond)
-    : 0;
+  const millisecondsPerToken = tokensPerSecond ? 1000 / tokensPerSecond : 0;
 
   return {
     tokensPerSecond,
@@ -286,7 +287,7 @@ export function estimateCloudCost({
 
 export function recommendGpus(
   requiredMemoryGB: number,
-  maxResults = 3
+  maxResults = 3,
 ): RecommendedGpu[] {
   if (requiredMemoryGB <= 0) {
     return [];
@@ -349,7 +350,12 @@ export function estimateTransformerParameters({
   intermediateSize,
   numKeyValueHeads,
 }: TransformerConfig): number {
-  if (vocabSize <= 0 || hiddenSize <= 0 || numLayers <= 0 || numAttentionHeads <= 0) {
+  if (
+    vocabSize <= 0 ||
+    hiddenSize <= 0 ||
+    numLayers <= 0 ||
+    numAttentionHeads <= 0
+  ) {
     return 0;
   }
 
@@ -382,9 +388,11 @@ export function estimateTransformerParameters({
 
 export function calculateMemoryFromBillions(
   paramsInBillions: number,
-  weightPrecisionBits: PrecisionBits
+  weightPrecisionBits: PrecisionBits,
 ): number {
   if (paramsInBillions <= 0) return 0;
-  return calculateWeightMemoryGB(paramsInBillions * 10 ** 9, weightPrecisionBits);
+  return calculateWeightMemoryGB(
+    paramsInBillions * 10 ** 9,
+    weightPrecisionBits,
+  );
 }
-

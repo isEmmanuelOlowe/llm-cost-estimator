@@ -1,19 +1,22 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
+import {
+  absoluteUrl,
+  resolveAssetUrl,
+  siteDescription,
+  siteName,
+  withBasePath,
+} from '@/lib/site-config';
+
 const defaultMeta = {
-  title: 'ProphetAI',
-  siteName: 'PhophetAI',
-  description:
-    'Esimate the appropriate hardware and gauge costs of your Transformers projects',
-  url: 'https://phophet',
+  title: siteName,
+  siteName,
+  description: siteDescription,
+  url: absoluteUrl('/'),
   type: 'website',
   robots: 'follow, index',
-  /**
-   * No need to be filled, will be populated with openGraph function
-   * If you wish to use a normal image, just specify the path below
-   */
-  image: 'https://tsnext-tw.thcl.dev/images/large-og.png',
+  image: resolveAssetUrl('/images/large-og.png'),
 };
 
 type SeoProps = {
@@ -23,6 +26,8 @@ type SeoProps = {
 
 export default function Seo(props: SeoProps) {
   const router = useRouter();
+  const routePath = router.asPath.split('?')[0] || '/';
+  const pageUrl = absoluteUrl(routePath);
   const meta = {
     ...defaultMeta,
     ...props,
@@ -30,23 +35,16 @@ export default function Seo(props: SeoProps) {
   meta['title'] = props.templateTitle
     ? `${props.templateTitle} | ${meta.siteName}`
     : meta.title;
-
-  // Use siteName if there is templateTitle
-  // but show full title if there is none
-  // ? Uncomment code below if you want to use default open graph
-  // meta['image'] = openGraph({
-  //   description: meta.description,
-  //   siteName: props.templateTitle ? meta.siteName : meta.title,
-  //   templateTitle: props.templateTitle,
-  // });
+  meta['url'] = pageUrl;
+  meta['image'] = resolveAssetUrl(meta.image);
 
   return (
     <Head>
       <title>{meta.title}</title>
       <meta name='robots' content={meta.robots} />
       <meta content={meta.description} name='description' />
-      <meta property='og:url' content={`${meta.url}${router.asPath}`} />
-      <link rel='canonical' href={`${meta.url}${router.asPath}`} />
+      <meta property='og:url' content={meta.url} />
+      <link rel='canonical' href={meta.url} />
       {/* Open Graph */}
       <meta property='og:type' content={meta.type} />
       <meta property='og:site_name' content={meta.siteName} />
@@ -80,7 +78,10 @@ export default function Seo(props: SeoProps) {
         <link key={linkProps.href} {...linkProps} />
       ))}
       <meta name='msapplication-TileColor' content='#ffffff' />
-      <meta name='msapplication-config' content='/favicon/browserconfig.xml' />
+      <meta
+        name='msapplication-config'
+        content={withBasePath('/favicon/browserconfig.xml')}
+      />
       <meta name='theme-color' content='#ffffff' />
     </Head>
   );
@@ -90,25 +91,20 @@ const favicons: Array<React.ComponentPropsWithoutRef<'link'>> = [
   {
     rel: 'apple-touch-icon',
     sizes: '180x180',
-    href: '/favicon/apple-touch-icon.png',
+    href: withBasePath('/favicon/apple-touch-icon.png'),
   },
   {
     rel: 'icon',
     type: 'image/png',
     sizes: '32x32',
-    href: '/favicon/favicon-32x32.png',
+    href: withBasePath('/favicon/favicon-32x32.png'),
   },
   {
     rel: 'icon',
     type: 'image/png',
     sizes: '16x16',
-    href: '/favicon/favicon-16x16.png',
+    href: withBasePath('/favicon/favicon-16x16.png'),
   },
-  { rel: 'manifest', href: '/favicon/site.webmanifest' },
-  {
-    rel: 'mask-icon',
-    href: '/favicon/safari-pinned-tab.svg',
-    color: '#00e887',
-  },
-  { rel: 'shortcut icon', href: '/favicon/favicon.ico' },
+  { rel: 'manifest', href: withBasePath('/favicon/site.webmanifest') },
+  { rel: 'shortcut icon', href: withBasePath('/favicon/favicon.ico') },
 ];

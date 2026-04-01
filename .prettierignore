@@ -12,6 +12,8 @@
 .next
 /.next/
 /out/
+.omx
+.vscode
 
 # production
 /build

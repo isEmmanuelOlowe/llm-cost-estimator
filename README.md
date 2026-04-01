@@ -15,7 +15,7 @@ The LLM Cost Estimator is an interactive Next.js application that helps machine-
 1. Install dependencies:
 
    ```bash
-   npm install
+   npm ci
    ```
 
 2. Start the development server:
@@ -33,6 +33,21 @@ Run the unit test suite to verify estimator calculations:
 ```bash
 npm test
 ```
+
+Run the full local verification flow:
+
+```bash
+npm run lint:strict
+npm run typecheck
+npm test -- --runInBand
+npm run build
+npm run verify:export
+```
+
+## Deployment
+
+- The site is built as a **static export** (`output: 'export'`) and deployed to **GitHub Pages** from `.github/workflows/nextjs.yml`.
+- Production builds use `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_BASE_PATH` to generate correct canonical URLs, sitemap entries, and static asset paths for the repository Pages URL.
 
 ## Disclaimer
 

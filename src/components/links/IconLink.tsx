@@ -32,7 +32,7 @@ const IconLink = React.forwardRef<HTMLAnchorElement, IconLinkProps>(
       iconClassName,
       ...rest
     },
-    ref
+    ref,
   ) => {
     return (
       <UnstyledLink
@@ -81,14 +81,14 @@ const IconLink = React.forwardRef<HTMLAnchorElement, IconLinkProps>(
           ],
           //#endregion  //*======== Variants ===========
           'disabled:cursor-not-allowed',
-          className
+          className,
         )}
         {...rest}
       >
         {Icon && <Icon className={clsxm(iconClassName)} />}
       </UnstyledLink>
     );
-  }
+  },
 );
 
 export default IconLink;

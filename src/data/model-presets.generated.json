@@ -1,0 +1,299 @@
+[
+  {
+    "id": "Qwen/Qwen3.5-27B",
+    "label": "Qwen3.5-27B",
+    "family": "Qwen3.5",
+    "modelType": "dense",
+    "modality": "multimodal",
+    "parameterCount": 27000000000,
+    "activeParameterCount": null,
+    "contextLength": 262144,
+    "hiddenSize": 5120,
+    "numLayers": 64,
+    "numHeads": 24,
+    "intermediateSize": 17408,
+    "vocabSize": 248320,
+    "dtypeBits": 16,
+    "pipelineTag": "image-text-to-text",
+    "modelTypeTag": "qwen3_5",
+    "architectures": ["Qwen3_5ForConditionalGeneration"],
+    "license": "apache-2.0",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "qwen3_5",
+      "image-text-to-text",
+      "conversational",
+      "license:apache-2.0",
+      "eval-results",
+      "endpoints_compatible",
+      "deploy:azure",
+      "region:us"
+    ],
+    "engineSupport": [
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "KTransformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Dense multimodal Qwen3.5 checkpoint with 262K native context and official vLLM/SGLang serving recipes."
+  },
+  {
+    "id": "Qwen/Qwen3.5-35B-A3B",
+    "label": "Qwen3.5-35B-A3B",
+    "family": "Qwen3.5",
+    "modelType": "moe",
+    "modality": "multimodal",
+    "parameterCount": 35000000000,
+    "activeParameterCount": 3000000000,
+    "contextLength": 262144,
+    "hiddenSize": 2048,
+    "numLayers": 40,
+    "numHeads": null,
+    "intermediateSize": null,
+    "vocabSize": 248320,
+    "dtypeBits": 16,
+    "pipelineTag": "image-text-to-text",
+    "modelTypeTag": "qwen3_5_moe",
+    "architectures": ["Qwen3_5MoeForConditionalGeneration"],
+    "license": "apache-2.0",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "qwen3_5_moe",
+      "image-text-to-text",
+      "conversational",
+      "base_model:Qwen/Qwen3.5-35B-A3B-Base",
+      "base_model:finetune:Qwen/Qwen3.5-35B-A3B-Base",
+      "license:apache-2.0",
+      "eval-results",
+      "endpoints_compatible",
+      "deploy:azure",
+      "region:us"
+    ],
+    "engineSupport": [
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "KTransformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "MoE Qwen3.5 variant with 35B total / 3B active parameters and 262K native context."
+  },
+  {
+    "id": "Qwen/Qwen3-Coder-Next",
+    "label": "Qwen3-Coder-Next",
+    "family": "Qwen3-Coder",
+    "modelType": "hybrid",
+    "modality": "text",
+    "parameterCount": 80000000000,
+    "activeParameterCount": 3000000000,
+    "contextLength": 262144,
+    "hiddenSize": 2048,
+    "numLayers": 48,
+    "numHeads": 16,
+    "intermediateSize": 5120,
+    "vocabSize": 151936,
+    "dtypeBits": 16,
+    "pipelineTag": "text-generation",
+    "modelTypeTag": "qwen3_next",
+    "architectures": ["Qwen3NextForCausalLM"],
+    "license": "apache-2.0",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "qwen3_next",
+      "text-generation",
+      "conversational",
+      "license:apache-2.0",
+      "eval-results",
+      "endpoints_compatible",
+      "deploy:azure",
+      "region:us"
+    ],
+    "engineSupport": [
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Coding-focused hybrid architecture with 80B total / 3B active parameters and 262K context."
+  },
+  {
+    "id": "openai/gpt-oss-20b",
+    "label": "gpt-oss-20b",
+    "family": "gpt-oss",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 21000000000,
+    "activeParameterCount": 3600000000,
+    "contextLength": 131072,
+    "hiddenSize": 2880,
+    "numLayers": 24,
+    "numHeads": 64,
+    "intermediateSize": 2880,
+    "vocabSize": 201088,
+    "dtypeBits": null,
+    "pipelineTag": "text-generation",
+    "modelTypeTag": "gpt_oss",
+    "architectures": ["GptOssForCausalLM"],
+    "license": "apache-2.0",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "gpt_oss",
+      "text-generation",
+      "vllm",
+      "conversational",
+      "arxiv:2508.10925",
+      "license:apache-2.0",
+      "eval-results",
+      "endpoints_compatible",
+      "8-bit",
+      "mxfp4",
+      "deploy:azure",
+      "region:us"
+    ],
+    "engineSupport": [
+      {
+        "engine": "vLLM",
+        "status": "specialized"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "OpenAI open-weight reasoning model optimized for low-latency local and specialized deployment."
+  },
+  {
+    "id": "zai-org/GLM-4.7-Flash",
+    "label": "GLM-4.7-Flash",
+    "family": "GLM-4.7",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 30000000000,
+    "activeParameterCount": 3000000000,
+    "contextLength": 202752,
+    "hiddenSize": 2048,
+    "numLayers": 47,
+    "numHeads": 20,
+    "intermediateSize": 10240,
+    "vocabSize": 154880,
+    "dtypeBits": null,
+    "pipelineTag": "text-generation",
+    "modelTypeTag": "glm4_moe_lite",
+    "architectures": ["Glm4MoeLiteForCausalLM"],
+    "license": "mit",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "glm4_moe_lite",
+      "text-generation",
+      "conversational",
+      "en",
+      "zh",
+      "arxiv:2508.06471",
+      "license:mit",
+      "eval-results",
+      "endpoints_compatible",
+      "deploy:azure",
+      "region:us"
+    ],
+    "engineSupport": [
+      {
+        "engine": "vLLM",
+        "status": "nightly"
+      },
+      {
+        "engine": "SGLang",
+        "status": "nightly"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Flash-oriented GLM checkpoint whose vLLM and SGLang support currently tracks main or nightly branches."
+  },
+  {
+    "id": "moonshotai/Kimi-K2.5",
+    "label": "Kimi-K2.5",
+    "family": "Kimi",
+    "modelType": "moe",
+    "modality": "multimodal",
+    "parameterCount": 1000000000000,
+    "activeParameterCount": 32000000000,
+    "contextLength": 256000,
+    "hiddenSize": 7168,
+    "numLayers": 61,
+    "numHeads": 64,
+    "intermediateSize": null,
+    "vocabSize": 160000,
+    "dtypeBits": 16,
+    "pipelineTag": "image-text-to-text",
+    "modelTypeTag": "kimi_k25",
+    "architectures": ["KimiK25ForConditionalGeneration"],
+    "license": "other",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "kimi_k25",
+      "feature-extraction",
+      "compressed-tensors",
+      "image-text-to-text",
+      "conversational",
+      "custom_code",
+      "arxiv:2602.02276",
+      "license:other",
+      "eval-results",
+      "region:us"
+    ],
+    "engineSupport": [
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "KTransformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Large multimodal MoE model with 1T total / 32B active parameters and 256K context."
+  }
+]

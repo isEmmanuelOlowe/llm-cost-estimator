@@ -1,6 +1,9 @@
-import axios from 'axios';
 import Head from 'next/head';
 import { useCallback, useMemo, useState } from 'react';
+
+import { fetchJson } from '@/lib/http';
+
+import modelPresets from '@/data/model-presets.generated.json';
 
 import Seo from '@/components/Seo';
 
@@ -32,6 +35,8 @@ interface ModelMetadata {
   vocabSize?: number;
   dtypeBits?: PrecisionBits;
 }
+
+type ModelPreset = (typeof modelPresets)[number];
 
 const DEFAULT_MODEL_ID = 'meta-llama/Llama-2-7b-hf';
 
@@ -76,7 +81,7 @@ export default function HomePage() {
   const [concurrentUsers, setConcurrentUsers] = useState<number>(1);
   const [trainingBatchSize, setTrainingBatchSize] = useState<number>(32);
   const [architectureMode, setArchitectureMode] = useState<'auto' | 'manual'>(
-    'auto'
+    'auto',
   );
   const [manualHiddenSize, setManualHiddenSize] = useState<number>(4096);
   const [manualNumLayers, setManualNumLayers] = useState<number>(32);
@@ -84,7 +89,7 @@ export default function HomePage() {
   const [manualIntermediateSize, setManualIntermediateSize] =
     useState<number>(0);
   const [selectedGpuName, setSelectedGpuName] = useState<Gpu['name']>(
-    gpus[0].name
+    gpus[0].name,
   );
   const [selectedInstanceName, setSelectedInstanceName] = useState<
     CloudInstance['name']
@@ -93,15 +98,19 @@ export default function HomePage() {
   const [customHourlyRate, setCustomHourlyRate] = useState<number | ''>('');
   const [modelError, setModelError] = useState<string | null>(null);
   const [isLoadingModel, setIsLoadingModel] = useState<boolean>(false);
+  const selectedPreset = useMemo(
+    () => modelPresets.find((preset) => preset.id === modelId),
+    [modelId],
+  );
 
   const parameterCount = useMemo(
     () => Math.max(parameterBillions, 0) * 10 ** 9,
-    [parameterBillions]
+    [parameterBillions],
   );
 
   const autoArchitecture = useMemo(
     () => estimateLlamaStyleArchitecture(parameterCount),
-    [parameterCount]
+    [parameterCount],
   );
 
   const enableManualOverrides = useCallback(() => {
@@ -133,12 +142,16 @@ export default function HomePage() {
 
   const effectiveHiddenSize = useMemo(() => {
     const autoValue = autoArchitecture.hiddenSize || manualHiddenSize;
-    return architectureMode === 'auto' ? autoValue : manualHiddenSize || autoValue;
+    return architectureMode === 'auto'
+      ? autoValue
+      : manualHiddenSize || autoValue;
   }, [architectureMode, autoArchitecture.hiddenSize, manualHiddenSize]);
 
   const effectiveNumLayers = useMemo(() => {
     const autoValue = autoArchitecture.numLayers || manualNumLayers;
-    return architectureMode === 'auto' ? autoValue : manualNumLayers || autoValue;
+    return architectureMode === 'auto'
+      ? autoValue
+      : manualNumLayers || autoValue;
   }, [architectureMode, autoArchitecture.numLayers, manualNumLayers]);
 
   const effectiveNumHeads = useMemo(() => {
@@ -184,8 +197,9 @@ export default function HomePage() {
 
   const selectedInstance = useMemo(() => {
     return (
-      cloudInstances.find((instance) => instance.name === selectedInstanceName) ??
-      cloudInstances[0]
+      cloudInstances.find(
+        (instance) => instance.name === selectedInstanceName,
+      ) ?? cloudInstances[0]
     );
   }, [selectedInstanceName]);
 
@@ -205,12 +219,7 @@ export default function HomePage() {
       sequenceLength,
       vocabSize,
     });
-  }, [
-    effectiveHiddenSize,
-    effectiveNumLayers,
-    sequenceLength,
-    vocabSize,
-  ]);
+  }, [effectiveHiddenSize, effectiveNumLayers, sequenceLength, vocabSize]);
 
   const memoryBreakdown: MemoryBreakdown = useMemo(() => {
     if (!parameterCount || !effectiveHiddenSize || !effectiveNumLayers) {
@@ -243,7 +252,7 @@ export default function HomePage() {
     mode,
     effectiveHiddenSize,
     effectiveNumLayers,
-      sequenceLength,
+    sequenceLength,
     effectiveBatchSize,
     kvBits,
     optimizer,
@@ -292,9 +301,9 @@ export default function HomePage() {
 
     const hasArchitecture = Boolean(
       (metadata.hiddenSize && metadata.hiddenSize > 0) ||
-        (metadata.numLayers && metadata.numLayers > 0) ||
-        (metadata.numHeads && metadata.numHeads > 0) ||
-        (metadata.intermediateSize && metadata.intermediateSize > 0)
+      (metadata.numLayers && metadata.numLayers > 0) ||
+      (metadata.numHeads && metadata.numHeads > 0) ||
+      (metadata.intermediateSize && metadata.intermediateSize > 0),
     );
 
     if (hasArchitecture) {
@@ -322,6 +331,24 @@ export default function HomePage() {
     if (metadata.dtypeBits) setWeightBits(metadata.dtypeBits);
   }, []);
 
+  const applyModelPreset = useCallback(
+    (preset: ModelPreset) => {
+      setModelId(preset.id);
+      setModelError(null);
+      applyModelMetadata({
+        parameterCount: preset.parameterCount,
+        hiddenSize: preset.hiddenSize ?? 0,
+        numLayers: preset.numLayers ?? 0,
+        numHeads: preset.numHeads ?? 0,
+        intermediateSize: preset.intermediateSize ?? undefined,
+        sequenceLength: preset.contextLength,
+        vocabSize: preset.vocabSize ?? undefined,
+        dtypeBits: (preset.dtypeBits as PrecisionBits | null) ?? undefined,
+      });
+    },
+    [applyModelMetadata],
+  );
+
   const fetchModelConfig = useCallback(
     async (id: string) => {
       const trimmedId = id.trim();
@@ -333,17 +360,18 @@ export default function HomePage() {
       setIsLoadingModel(true);
       setModelError(null);
       try {
-        const response = await axios.get(
-          `https://huggingface.co/${trimmedId}/raw/main/config.json`,
-          {
-            timeout: 10000,
-          }
+        const metadata = parseModelConfig(
+          await fetchJson<Record<string, unknown>>(
+            `https://huggingface.co/${trimmedId}/raw/main/config.json`,
+            {
+              timeoutMs: 10000,
+            },
+          ),
         );
-        const metadata = parseModelConfig(response.data);
         applyModelMetadata(metadata);
       } catch (error: unknown) {
         setModelError(
-          'Unable to retrieve model configuration from Hugging Face.'
+          'Unable to retrieve model configuration from Hugging Face.',
         );
         if (process.env.NODE_ENV !== 'production') {
           // eslint-disable-next-line no-console
@@ -353,7 +381,7 @@ export default function HomePage() {
         setIsLoadingModel(false);
       }
     },
-    [applyModelMetadata]
+    [applyModelMetadata],
   );
 
   const memoryHeadroom = useMemo(() => {
@@ -362,7 +390,10 @@ export default function HomePage() {
   }, [selectedGpu, memoryBreakdown.totalGB]);
 
   return (
-    <main data-theme='dark' className='min-h-screen bg-base-200 text-base-content'>
+    <main
+      data-theme='dark'
+      className='min-h-screen bg-base-200 text-base-content'
+    >
       <Seo />
       <Head>
         <title>LLM Cost &amp; Resource Estimator</title>
@@ -373,14 +404,17 @@ export default function HomePage() {
             LLM Resource Usage &amp; Cost Calculator
           </h1>
           <p className='text-base-content/80'>
-            Analyse memory requirements, throughput and cloud spend for open-source language models in seconds.
+            Analyse memory requirements, throughput and cloud spend for
+            open-source language models in seconds.
           </p>
         </header>
 
         <section className='mt-10 rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
           <div className='flex flex-col gap-4 md:flex-row md:items-end'>
             <label className='flex-1'>
-              <span className='label-text font-semibold'>Hugging Face model ID</span>
+              <span className='label-text font-semibold'>
+                Hugging Face model ID
+              </span>
               <input
                 className='input input-bordered mt-2 w-full'
                 placeholder='meta-llama/Llama-2-7b-hf'
@@ -403,6 +437,109 @@ export default function HomePage() {
             </p>
           )}
 
+          <div className='mt-6'>
+            <div className='flex items-center justify-between gap-3'>
+              <div>
+                <h2 className='text-sm font-semibold text-base-content/80'>
+                  Curated presets
+                </h2>
+                <p className='text-xs text-base-content/70'>
+                  Start from modern open-weight models with known serving notes.
+                </p>
+              </div>
+              <span className='badge badge-outline'>
+                {modelPresets.length} presets
+              </span>
+            </div>
+            <div className='mt-3 flex flex-wrap gap-2'>
+              {modelPresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  className={`btn btn-sm ${
+                    selectedPreset?.id === preset.id
+                      ? 'btn-primary'
+                      : 'btn-outline'
+                  }`}
+                  type='button'
+                  onClick={() => applyModelPreset(preset)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedPreset && (
+            <div className='mt-6 rounded-xl border border-base-300 bg-base-200 p-4'>
+              <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
+                <div>
+                  <h3 className='text-lg font-semibold'>
+                    {selectedPreset.label}
+                  </h3>
+                  <p className='mt-1 text-sm text-base-content/75'>
+                    {selectedPreset.summary}
+                  </p>
+                </div>
+                <div className='flex flex-wrap gap-2'>
+                  <span className='badge badge-primary badge-outline'>
+                    {selectedPreset.family}
+                  </span>
+                  <span className='badge badge-outline'>
+                    {selectedPreset.modelType}
+                  </span>
+                  <span className='badge badge-outline'>
+                    {selectedPreset.modality}
+                  </span>
+                </div>
+              </div>
+
+              <dl className='mt-4 grid gap-3 text-sm md:grid-cols-4'>
+                <div>
+                  <dt className='text-base-content/70'>Total params</dt>
+                  <dd className='font-semibold'>
+                    {formatNumber(selectedPreset.parameterCount / 1e9, 1)} B
+                  </dd>
+                </div>
+                <div>
+                  <dt className='text-base-content/70'>Active params</dt>
+                  <dd className='font-semibold'>
+                    {selectedPreset.activeParameterCount
+                      ? `${formatNumber(
+                          selectedPreset.activeParameterCount / 1e9,
+                          1,
+                        )} B`
+                      : 'Dense'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className='text-base-content/70'>Native context</dt>
+                  <dd className='font-semibold'>
+                    {formatNumber(selectedPreset.contextLength, 0)} tokens
+                  </dd>
+                </div>
+                <div>
+                  <dt className='text-base-content/70'>Recommended engines</dt>
+                  <dd className='font-semibold'>
+                    {selectedPreset.engineSupport
+                      .map((entry) => entry.engine)
+                      .join(', ')}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className='mt-4 flex flex-wrap gap-2'>
+                {selectedPreset.engineSupport.map((entry) => (
+                  <span
+                    key={`${selectedPreset.id}-${entry.engine}`}
+                    className='badge badge-outline'
+                  >
+                    {entry.engine}: {entry.status}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <dl className='mt-6 grid gap-4 text-sm md:grid-cols-3'>
             <div>
               <dt className='font-semibold text-base-content/70'>Parameters</dt>
@@ -411,8 +548,12 @@ export default function HomePage() {
               </dd>
             </div>
             <div>
-              <dt className='font-semibold text-base-content/70'>Hidden size</dt>
-              <dd className='text-lg font-bold'>{effectiveHiddenSize || '–'}</dd>
+              <dt className='font-semibold text-base-content/70'>
+                Hidden size
+              </dt>
+              <dd className='text-lg font-bold'>
+                {effectiveHiddenSize || '–'}
+              </dd>
             </div>
             <div>
               <dt className='font-semibold text-base-content/70'>Layers</dt>
@@ -428,7 +569,8 @@ export default function HomePage() {
                 <div>
                   <h2 className='text-xl font-semibold'>Quick estimator</h2>
                   <p className='mt-1 text-sm text-base-content/70'>
-                    Size weights and KV cache instantly from core workload inputs.
+                    Size weights and KV cache instantly from core workload
+                    inputs.
                   </p>
                 </div>
                 <div className='join self-start'>
@@ -561,7 +703,9 @@ export default function HomePage() {
                         setConcurrentUsers(Number(event.target.value) || 1)
                       }
                     />
-                    <span className='badge badge-outline'>{concurrentUsers}</span>
+                    <span className='badge badge-outline'>
+                      {concurrentUsers}
+                    </span>
                   </div>
                   <p className='text-xs text-base-content/70'>
                     KV cache memory scales linearly with concurrent sequences
@@ -587,7 +731,9 @@ export default function HomePage() {
             <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
               <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
                 <div>
-                  <h2 className='text-xl font-semibold'>Architecture assumptions</h2>
+                  <h2 className='text-xl font-semibold'>
+                    Architecture assumptions
+                  </h2>
                   <p className='mt-1 text-sm text-base-content/70'>
                     {architectureMode === 'auto'
                       ? 'Using LLaMA-style scaling heuristics derived from parameter count. Enable manual mode to match a specific checkpoint.'
@@ -606,7 +752,9 @@ export default function HomePage() {
                   </button>
                   <button
                     className={`btn btn-sm join-item ${
-                      architectureMode === 'manual' ? 'btn-primary' : 'btn-ghost'
+                      architectureMode === 'manual'
+                        ? 'btn-primary'
+                        : 'btn-ghost'
                     }`}
                     type='button'
                     onClick={enableManualOverrides}
@@ -618,7 +766,9 @@ export default function HomePage() {
 
               <dl className='mt-6 grid gap-4 text-sm sm:grid-cols-2'>
                 <div>
-                  <dt className='font-semibold text-base-content/70'>Hidden size</dt>
+                  <dt className='font-semibold text-base-content/70'>
+                    Hidden size
+                  </dt>
                   <dd className='text-lg font-semibold'>
                     {effectiveHiddenSize || '–'}
                   </dd>
@@ -630,13 +780,17 @@ export default function HomePage() {
                   </dd>
                 </div>
                 <div>
-                  <dt className='font-semibold text-base-content/70'>Attention heads</dt>
+                  <dt className='font-semibold text-base-content/70'>
+                    Attention heads
+                  </dt>
                   <dd className='text-lg font-semibold'>
                     {effectiveNumHeads || '–'}
                   </dd>
                 </div>
                 <div>
-                  <dt className='font-semibold text-base-content/70'>Feed-forward size</dt>
+                  <dt className='font-semibold text-base-content/70'>
+                    Feed-forward size
+                  </dt>
                   <dd className='text-lg font-semibold'>
                     {effectiveIntermediateSize || '–'}
                   </dd>
@@ -694,7 +848,7 @@ export default function HomePage() {
                         value={manualIntermediateSize || ''}
                         onChange={(event) =>
                           setManualIntermediateSize(
-                            Number(event.target.value) || 0
+                            Number(event.target.value) || 0,
                           )
                         }
                       />
@@ -772,7 +926,9 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div className='flex items-center justify-between'>
-                  <span>Framework overhead ({formatNumber(overheadFactor, 2)}×)</span>
+                  <span>
+                    Framework overhead ({formatNumber(overheadFactor, 2)}×)
+                  </span>
                   <span className='font-semibold'>
                     {formatMemory(memoryBreakdown.overheadGB)}
                   </span>
@@ -858,16 +1014,20 @@ export default function HomePage() {
                       : 'N/A'}
                   </p>
                   <p className='text-xs text-base-content/70'>
-                    Adjust the efficiency multiplier to reflect framework and kernel
-                    optimisations.
+                    Adjust the efficiency multiplier to reflect framework and
+                    kernel optimisations.
                   </p>
                 </div>
               </div>
 
               <div className='mt-4 space-y-3 text-sm'>
                 <p>
-                  <span className='font-semibold'>Estimated FLOPs / sequence:</span>{' '}
-                  {flops ? `${formatNumber(flops / 10 ** 12, 2)} TFLOPs` : 'N/A'}
+                  <span className='font-semibold'>
+                    Estimated FLOPs / sequence:
+                  </span>{' '}
+                  {flops
+                    ? `${formatNumber(flops / 10 ** 12, 2)} TFLOPs`
+                    : 'N/A'}
                 </p>
                 <p>
                   <span className='font-semibold'>Tokens per second:</span>{' '}
@@ -932,12 +1092,14 @@ export default function HomePage() {
                 </label>
                 <div className='rounded-lg bg-base-200 p-3'>
                   <p>
-                    <span className='font-semibold'>Effective hourly rate:</span>{' '}
+                    <span className='font-semibold'>
+                      Effective hourly rate:
+                    </span>{' '}
                     ${formatNumber(hourlyRate, 2)}
                   </p>
                   <p>
-                    <span className='font-semibold'>Estimated cost:</span>{' '}
-                    ${formatNumber(costEstimate.totalCost, 2)}
+                    <span className='font-semibold'>Estimated cost:</span> $
+                    {formatNumber(costEstimate.totalCost, 2)}
                   </p>
                 </div>
               </div>
@@ -968,7 +1130,11 @@ function parseModelConfig(config: Record<string, unknown>): ModelMetadata {
     }
   }
 
-  if (!parameterCount && typeof config.model === 'object' && config.model !== null) {
+  if (
+    !parameterCount &&
+    typeof config.model === 'object' &&
+    config.model !== null
+  ) {
     const nested = config.model as Record<string, unknown>;
     const nestedCount = safeNumber(nested.num_parameters);
     if (nestedCount && nestedCount > 0) {
@@ -1042,4 +1208,3 @@ function parseModelConfig(config: Record<string, unknown>): ModelMetadata {
     dtypeBits,
   };
 }
-

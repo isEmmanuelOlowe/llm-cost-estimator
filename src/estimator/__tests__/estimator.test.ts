@@ -32,12 +32,12 @@ describe('Estimator utilities', () => {
     const inferenceActivations = calculateActivationMemoryGB(
       params,
       16,
-      'inference'
+      'inference',
     );
     const trainingActivations = calculateActivationMemoryGB(
       params,
       16,
-      'training'
+      'training',
     );
 
     expect(trainingActivations).toBeGreaterThan(inferenceActivations);
@@ -136,4 +136,3 @@ describe('Estimator utilities', () => {
     expect(gb).toBeCloseTo(calculateWeightMemoryGB(7 * 10 ** 9, 16));
   });
 });
-
