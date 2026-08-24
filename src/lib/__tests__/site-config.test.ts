@@ -19,25 +19,25 @@ describe('site config helpers', () => {
   });
 
   it('prefixes paths with the configured base path', async () => {
-    process.env.NEXT_PUBLIC_BASE_PATH = '/llm-cost-estimator';
+    process.env.NEXT_PUBLIC_BASE_PATH = '/llm-explorer';
 
     const { withBasePath } = await import('@/lib/site-config');
 
     expect(withBasePath('/favicon/favicon.ico')).toBe(
-      '/llm-cost-estimator/favicon/favicon.ico',
+      '/llm-explorer/favicon/favicon.ico',
     );
-    expect(withBasePath('/')).toBe('/llm-cost-estimator');
+    expect(withBasePath('/')).toBe('/llm-explorer');
   });
 
   it('builds absolute URLs from the configured site origin', async () => {
-    process.env.NEXT_PUBLIC_BASE_PATH = '/llm-cost-estimator';
+    process.env.NEXT_PUBLIC_BASE_PATH = '/llm-explorer';
     process.env.NEXT_PUBLIC_SITE_URL = 'https://example.com/';
 
     const { absoluteUrl, resolveAssetUrl } = await import('@/lib/site-config');
 
-    expect(absoluteUrl('/')).toBe('https://example.com/llm-cost-estimator');
+    expect(absoluteUrl('/')).toBe('https://example.com/llm-explorer');
     expect(resolveAssetUrl('/images/large-og.png')).toBe(
-      'https://example.com/llm-cost-estimator/images/large-og.png',
+      'https://example.com/llm-explorer/images/large-og.png',
     );
     expect(resolveAssetUrl('https://cdn.example.com/og.png')).toBe(
       'https://cdn.example.com/og.png',

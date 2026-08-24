@@ -1,89 +1,123 @@
 # LLM Explorer
 
-LLM Explorer is an interactive Next.js application that helps machine-learning practitioners understand how a large language model is built, whether it will fit into a particular GPU setup, and how much it may cost to run. The explorer combines source-backed model architecture evidence, detailed VRAM breakdowns (weights, activations, KV cache and optimiser state), performance projections, hardware topology, and cloud pricing guidance.
+<p align="center">
+  <strong>Understand the model. Size the workload. Choose the hardware.</strong>
+</p>
 
-## Key capabilities
+<p align="center">
+  <a href="https://github.com/isEmmanuelOlowe/llm-explorer/actions/workflows/lint.yml"><img alt="Code checks" src="https://github.com/isEmmanuelOlowe/llm-explorer/actions/workflows/lint.yml/badge.svg" /></a>
+  <a href="https://github.com/isEmmanuelOlowe/llm-explorer/actions/workflows/nextjs.yml"><img alt="GitHub Pages" src="https://github.com/isEmmanuelOlowe/llm-explorer/actions/workflows/nextjs.yml/badge.svg" /></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/isEmmanuelOlowe/llm-explorer" /></a>
+</p>
 
-- **Evidence-backed Hugging Face inspection** – resolve a model to an immutable Hub revision, read the API’s safetensors parameter totals, normalize architecture aliases from `config.json`, inspect optional generation/tokenizer metadata, and show the pinned model-card/source links. If the Hub total is unavailable, the browser can inspect safetensors headers with bounded HTTP range requests instead of downloading weights.
-- **Transformers implementation map** – resolve the model type to the corresponding upstream Transformers directory, show a read-only source preview, and flag `auto_map`/remote-code indicators. Multimodal configs can expose separate image, video, audio, fusion, and language-stream stages instead of a generic projector box. The app never imports or executes downloaded Python.
-- **Model structure visualisation** – switch between an overview and an inside-the-block flow, zoom from 65–175%, select each component, inspect tensor shapes/scaling notes, follow the sequential attention → residual → feed-forward flow, and load the linked Transformers implementation code directly inside the explorer.
-- **Detailed VRAM analysis** – quantify memory consumption for model weights, activations, KV cache and optimiser state with a configurable execution mode (inference or training), precision, overhead factor and batch size.
-- **Architecture-aware KV cache** – model head dimension and GQA/MQA key/value heads, hybrid local/global schedules, DeepSeek V4 compressed attention, and Nemotron state-space layers are accounted for before showing resident bytes and scaling with context length and concurrent sequences.
-- **Current long-context defaults** – the default workspace starts with Gemma 4 12B and a 128K-token workload so long-context memory pressure is visible immediately.
-- **Hardware fit recommendations** – compare the required VRAM against a curated list of GPUs, highlight whether a selected GPU has enough headroom and propose the closest alternatives.
-- **Multi-vendor hardware inventory** – compare per-device versus aggregate memory, bandwidth, topology notes and precision-tagged compute fields across NVIDIA (including B200/B300, GB200/GB300 NVL72, HGX/DGX B300, DGX Spark, and DGX Station GB300), AMD (including Strix Halo and Instinct), and Intel accelerators.
-- **Performance estimations** – estimate FLOPs per forward pass, decode tokens per second and milliseconds per token using the lower of compute and weight-memory bandwidth roofs, explicit compute/memory efficiency factors, and the best precision-specific catalog field available. Apple unified-memory Macs can use the bandwidth roof even when no comparable FP32 TFLOPS figure is published. Vendor peak AI figures remain labelled with their precision/sparsity assumptions.
-- **Cloud cost calculator** – use provider-verified on-demand rates only when they match the exact selected GPU, see the pricing date and billing basis, or supply a current custom quote when no verified offering exists.
+<p align="center">
+  <a href="https://isemmanuelolowe.github.io/llm-explorer/"><strong>Open the live explorer →</strong></a>
+</p>
 
-## Getting started
+![LLM Explorer](public/images/large-og.png)
 
-1. Install dependencies:
+LLM Explorer is a static, source-backed workspace for inspecting modern language-model architectures and turning them into defensible deployment estimates. It connects Hugging Face evidence to an interactive architecture graph, memory composition, hardware fit, throughput ceilings, and verified cloud pricing without downloading checkpoints or executing remote model code.
 
-   ```bash
-   npm ci
-   ```
+## What it answers
 
-2. Start the development server:
+1. **How is this model built?** Inspect attention, residual, dense/MoE, multimodal, and output paths inside one repeated transformer block.
+2. **What consumes memory?** Separate weights, activations, KV/recurrent state, optimiser state, and framework overhead.
+3. **Will it fit?** Compare required memory with per-device and aggregate topology constraints across NVIDIA, AMD, Intel, and Apple hardware.
+4. **What might it deliver?** Estimate decode throughput from the lower of compute and memory-bandwidth ceilings.
+5. **What will the selected GPU cost?** Show a cloud rate only when a dated provider offering maps to that exact hardware—or accept an explicit custom quote.
 
-   ```bash
-   npm run dev
-   ```
+## Highlights
 
-3. Navigate to `http://localhost:3000` and explore the default `google/gemma-4-12B` or search for a Hugging Face model such as `Qwen/Qwen3.8-27B`.
+- **Diagram-first architecture explorer** with overview and inside-one-block modes, draggable nodes, adjacent tensor/component detail, compact repeated-layer notation, and semantic zoom.
+- **Pinned Hugging Face inspection** using immutable revisions, `config.json`, model metadata, bounded safetensors header requests, and linked Transformers implementations.
+- **Architecture-aware caching** for GQA/MQA, local/global attention schedules, compressed attention, and recurrent/state-space layers.
+- **Inference and training memory models** with weight format, KV precision, concurrency/batch size, optimiser, and explicit overhead controls.
+- **Topology-aware hardware matching** across individual accelerators, unified-memory systems, and multi-device platforms.
+- **Current source-backed catalogs** with vendor URLs, checked dates, precision labels, topology notes, and cloud-rate provenance.
+- **LABIIUM themes** with shared System, Paper, Obsidian, and Photonic appearances and a persisted cross-property preference.
+- **Static and privacy-preserving**: deployable to GitHub Pages with no backend, token collection, checkpoint download, or arbitrary Python execution.
 
-Public Hub repositories can be inspected directly from the static browser app. Gated/private repositories still require authentication and are reported as unavailable rather than accepting a token in the public client. The inspection flow reads metadata and source links only; it does not execute model code or download checkpoint weights.
+## Accuracy model
 
-## Refreshing source-backed catalogs
+The interface labels exact arithmetic, sourced evidence, and estimates separately.
 
-The generated catalogs are intentionally versioned snapshots so GitHub Pages remains a static export:
+| Output                             | Classification                     | Basis                                                            |
+| ---------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
+| Weight memory                      | Exact arithmetic                   | Parameter count × selected storage precision                     |
+| Standard KV cache                  | Exact arithmetic                   | Layers × KV heads × head dimension × precision × resident tokens |
+| Typed hybrid/state cache           | Architecture-aware arithmetic      | Source-backed layer schedules and state definitions              |
+| Cloud cost                         | Exact arithmetic over a dated rate | Exact selected-GPU mapping or explicit custom quote × runtime    |
+| Activations and framework overhead | Estimate                           | Runtime-dependent heuristics                                     |
+| Throughput and latency             | Estimate                           | Compute and bandwidth roofline ceilings, not a benchmark         |
+| Hardware fit                       | Estimate                           | Capacity/topology screening; runtime placement still matters     |
+
+## Quick start
+
+Requirements: Node `24.14.1+` and npm `11.11.0+`.
 
 ```bash
-npm run refresh:catalogs        # refresh both model and hardware snapshots
-npm run generate:model-catalog  # Hub API + SHA-pinned config/safetensors metadata
-npm run generate:gpu-catalog    # validate and copy the source-backed hardware catalog
+git clone https://github.com/isEmmanuelOlowe/llm-explorer.git
+cd llm-explorer
+npm ci
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). The default workspace uses `google/gemma-4-12B` with a long-context inference workload; select a curated preset or enter another public Hugging Face model ID.
+
+Public repositories are inspected in the browser. Gated/private repositories are reported as unavailable rather than requesting a token in a public client.
+
+## Source-backed catalogs
+
+Generated catalogs are committed as reproducible snapshots so the deployed application remains a static export.
+
+```bash
+npm run refresh:catalogs        # refresh model and GPU snapshots
+npm run generate:model-catalog  # pinned Hub/config/safetensors metadata
+npm run generate:gpu-catalog    # validate and copy hardware sources
 npm run verify:catalogs
 ```
 
-Hardware records carry vendor URLs, the date checked, per-device capacity, aggregate system capacity where applicable, and topology caveats. Cloud rates are reference snapshots with provider pricing links; region, term, spot/reservation status, and availability can change, so verify before purchasing capacity.
+Hardware entries include checked dates, vendor references, memory topology, bandwidth, and precision-qualified compute fields. Cloud prices include provider links and billing assumptions; rates and capacity can change, so the UI preserves the verification date and current-source link.
 
-## Testing
-
-Run the unit test suite to verify estimator calculations:
+## Verification
 
 ```bash
-npm test
-```
-
-Run the full local verification flow:
-
-```bash
+npm run format:check
 npm run lint:strict
 npm run typecheck
 npm test -- --runInBand
 npm run validate:math
+npm run verify:catalogs
 npm run build
 npm run verify:export
 ```
 
-The repo baseline is currently Node `24.14.1` with npm `11.11.0` or newer.
+The test suite covers estimator arithmetic, hybrid cache schedules, model metadata, graph layout and interaction, GPU grouping/catalog integrity, exact cloud-price matching, themes, and static asset paths.
 
 ## Deployment
 
-- The site is built as a **static export** (`output: 'export'`) and deployed to **GitHub Pages** from `.github/workflows/nextjs.yml`.
-- Production builds use `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_BASE_PATH` to generate correct canonical URLs, sitemap entries, and static asset paths for the repository Pages URL.
+The project uses Next.js Pages Router with `output: 'export'`. `.github/workflows/nextjs.yml` publishes `master` to GitHub Pages.
 
-## Disclaimer
+Production configuration is repository-name-safe:
 
-The estimator uses analytical approximations of transformer memory footprints, throughput and pricing. Results should be treated as indicative; always validate with real workloads before committing to production deployments.
+```text
+NEXT_PUBLIC_SITE_URL=https://<owner>.github.io
+NEXT_PUBLIC_BASE_PATH=/<repository>
+```
 
-Important distinctions shown in the UI:
+The workflow derives both values from GitHub, so canonical URLs, sitemap entries, fonts, favicons, and static assets continue to work under the repository Pages path.
 
-- safetensors totals are the strongest available public parameter evidence; range-header fallback counts serialized tensor elements and may differ for tied/shared weights;
-- architecture-derived parameter composition, activation memory, overhead, FLOPs, throughput and fit recommendations are analytical estimates;
-- multi-GPU aggregate memory is not automatically one contiguous allocation; tensor/pipeline parallelism and interconnect support must be validated in the selected runtime;
-- peak TOPS/TFLOPS values are not interchangeable across vendors unless precision and sparsity assumptions match.
-- the interactive architecture explorer is a config-driven, implementation-linked map; it does not execute arbitrary Transformers code or claim to reproduce every custom kernel/control-flow branch.
+## Security and data boundaries
+
+- Remote Python and custom Transformers code is linked for review but never imported or executed.
+- Safetensors fallback inspection uses bounded HTTP range requests instead of downloading weight files.
+- No Hugging Face token is collected by the static public client.
+- Multi-GPU aggregate capacity is not presented as automatically contiguous memory; runtime parallelism and interconnect support must still be validated.
 
 ## Contributing
 
-Pull requests that improve model coverage, pricing data or UX are very welcome. Please open an issue to discuss substantial changes before contributing.
+Contributions that improve model coverage, hardware/pricing provenance, estimator math, accessibility, or diagram usability are welcome. Keep generated catalog changes paired with their source overrides and verification output.
+
+## License
+
+See [LICENSE](LICENSE).

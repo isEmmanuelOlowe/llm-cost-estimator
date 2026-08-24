@@ -56,6 +56,9 @@ if (basePath) {
     `${basePath}/favicon/favicon.ico`,
     `${basePath}/favicon/site.webmanifest`,
     `${basePath}/fonts/inter-var-latin.woff2`,
+    `${basePath}/fonts/plus-jakarta-sans-latin-700-800.woff2`,
+    `${basePath}/fonts/ibm-plex-mono-latin-400.woff2`,
+    `${basePath}/fonts/ibm-plex-mono-latin-600.woff2`,
   ];
 
   for (const fragment of requiredBasePathFragments) {
@@ -69,6 +72,9 @@ if (basePath) {
     'href="/favicon/favicon.ico"',
     'href="/favicon/site.webmanifest"',
     'href="/fonts/inter-var-latin.woff2"',
+    'href="/fonts/plus-jakarta-sans-latin-700-800.woff2"',
+    'href="/fonts/ibm-plex-mono-latin-400.woff2"',
+    'href="/fonts/ibm-plex-mono-latin-600.woff2"',
   ];
 
   for (const fragment of forbiddenRootRelativeFragments) {
