@@ -2,7 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const outDir = path.join(process.cwd(), 'out');
-const requiredFiles = ['index.html', '404.html', 'robots.txt', 'sitemap.xml'];
+const requiredFiles = [
+  'index.html',
+  '404.html',
+  'robots.txt',
+  'sitemap.xml',
+  'favicon.ico',
+  'icon.svg',
+  'apple-touch-icon.png',
+  'android-chrome-192x192.png',
+  'manifest.webmanifest',
+];
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const siteOrigin = (
   process.env.NEXT_PUBLIC_SITE_URL || 'https://llm.labiium.com'
@@ -53,8 +63,10 @@ assert(
 
 if (basePath) {
   const requiredBasePathFragments = [
-    `${basePath}/favicon/favicon.ico`,
-    `${basePath}/favicon/site.webmanifest`,
+    `${basePath}/favicon.ico`,
+    `${basePath}/icon.svg`,
+    `${basePath}/apple-touch-icon.png`,
+    `${basePath}/manifest.webmanifest`,
     `${basePath}/fonts/inter-var-latin.woff2`,
     `${basePath}/fonts/plus-jakarta-sans-latin-700-800.woff2`,
     `${basePath}/fonts/ibm-plex-mono-latin-400.woff2`,
@@ -69,8 +81,10 @@ if (basePath) {
   }
 
   const forbiddenRootRelativeFragments = [
-    'href="/favicon/favicon.ico"',
-    'href="/favicon/site.webmanifest"',
+    'href="/favicon.ico"',
+    'href="/icon.svg"',
+    'href="/apple-touch-icon.png"',
+    'href="/manifest.webmanifest"',
     'href="/fonts/inter-var-latin.woff2"',
     'href="/fonts/plus-jakarta-sans-latin-700-800.woff2"',
     'href="/fonts/ibm-plex-mono-latin-400.woff2"',

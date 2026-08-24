@@ -18,6 +18,15 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
+      - name: 🔒 Verify OMX runtime state is untracked
+        run: |
+          tracked_omx="$(git ls-files '.omx' '.omx/**')"
+          if [ -n "$tracked_omx" ]; then
+            echo "OMX runtime files must never be committed:"
+            echo "$tracked_omx"
+            exit 1
+          fi
+
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
         with:

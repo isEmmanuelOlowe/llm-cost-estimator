@@ -77,12 +77,7 @@ export default function Seo(props: SeoProps) {
       {favicons.map((linkProps) => (
         <link key={linkProps.href} {...linkProps} />
       ))}
-      <meta name='msapplication-TileColor' content='#ffffff' />
-      <meta
-        name='msapplication-config'
-        content={withBasePath('/favicon/browserconfig.xml')}
-      />
-      <meta name='theme-color' content='#ffffff' />
+      <meta name='theme-color' content='#0B0E11' />
     </Head>
   );
 }
@@ -91,20 +86,18 @@ const favicons: Array<React.ComponentPropsWithoutRef<'link'>> = [
   {
     rel: 'apple-touch-icon',
     sizes: '180x180',
-    href: withBasePath('/favicon/apple-touch-icon.png'),
+    href: withBasePath('/apple-touch-icon.png'),
   },
   {
     rel: 'icon',
-    type: 'image/png',
-    sizes: '32x32',
-    href: withBasePath('/favicon/favicon-32x32.png'),
+    type: 'image/svg+xml',
+    sizes: 'any',
+    href: withBasePath('/icon.svg'),
   },
   {
     rel: 'icon',
-    type: 'image/png',
-    sizes: '16x16',
-    href: withBasePath('/favicon/favicon-16x16.png'),
+    sizes: '16x16 32x32 48x48',
+    href: withBasePath('/favicon.ico'),
   },
-  { rel: 'manifest', href: withBasePath('/favicon/site.webmanifest') },
-  { rel: 'shortcut icon', href: withBasePath('/favicon/favicon.ico') },
+  { rel: 'manifest', href: withBasePath('/manifest.webmanifest') },
 ];

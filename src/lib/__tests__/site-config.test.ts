@@ -23,9 +23,7 @@ describe('site config helpers', () => {
 
     const { withBasePath } = await import('@/lib/site-config');
 
-    expect(withBasePath('/favicon/favicon.ico')).toBe(
-      '/llm-explorer/favicon/favicon.ico',
-    );
+    expect(withBasePath('/favicon.ico')).toBe('/llm-explorer/favicon.ico');
     expect(withBasePath('/')).toBe('/llm-explorer');
   });
 
