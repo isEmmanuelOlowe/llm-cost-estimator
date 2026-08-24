@@ -9,6 +9,7 @@ import { fuzzySearchModels } from '@/lib/model-search';
 
 import modelPresets from '@/data/model-presets.generated.json';
 
+import ThemeCycleButton from '@/components/layout/ThemeCycleButton';
 import DeploymentDecisionPath from '@/components/model/DeploymentDecisionPath';
 import KvCacheScalingCard from '@/components/model/KvCacheScalingCard';
 import ModelArchitectureDiagram from '@/components/model/ModelArchitectureDiagram';
@@ -730,27 +731,24 @@ export default function HomePage() {
   );
 
   return (
-    <main
-      data-theme='dark'
-      className='min-h-screen bg-base-200 text-base-content'
-    >
+    <main className='photonic-shell min-h-screen bg-transparent text-base-content'>
       <Seo />
       <Head>
         <title>LLM Explorer</title>
       </Head>
-      <div className='sticky top-0 z-40 border-b border-base-300/80 bg-base-200/95 backdrop-blur'>
+      <div className='site-nav sticky top-0 z-40 border-b border-base-300/80 backdrop-blur'>
         <div className='mx-auto flex max-w-[1800px] items-center gap-4 px-5 py-3 sm:px-8 xl:px-12'>
           <a
             href='#top'
-            className='flex shrink-0 items-center gap-2 font-semibold tracking-tight text-base-content'
+            className='flex shrink-0 items-baseline gap-2 tracking-tight text-base-content transition-colors hover:text-secondary'
           >
-            <span className='grid size-8 place-items-center rounded-lg bg-primary font-mono text-xs font-bold text-primary-content shadow-lg shadow-primary/20'>
-              LE
+            <span className='font-display text-lg font-extrabold'>LABIIUM</span>
+            <span className='hidden text-xs font-medium text-base-content/55 sm:inline'>
+              / LLM Explorer
             </span>
-            <span>LLM Explorer</span>
           </a>
           <nav
-            className='min-w-0 flex-1 overflow-x-auto'
+            className='hidden min-w-0 flex-1 overflow-x-auto md:block'
             aria-label='Explorer sections'
           >
             <ul className='flex min-w-max items-center justify-end gap-1 text-xs font-medium text-base-content/70'>
@@ -801,6 +799,7 @@ export default function HomePage() {
               </li>
             </ul>
           </nav>
+          <ThemeCycleButton />
           <span className='hidden shrink-0 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[11px] text-success lg:inline'>
             Public model explorer
           </span>
@@ -815,7 +814,7 @@ export default function HomePage() {
             <h1 className='text-3xl font-bold tracking-tight text-base-content'>
               LLM <span className='text-primary'>Explorer</span>
             </h1>
-            <div className='flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary'>
+            <div className='hidden items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary sm:flex'>
               <span className='size-1.5 rounded-full bg-primary' />
               Inspect → Understand → Deploy
             </div>
@@ -914,7 +913,7 @@ export default function HomePage() {
           )}
 
           <div className='mt-6'>
-            <div className='flex items-center justify-between gap-3'>
+            <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
               <div>
                 <h2 className='text-sm font-semibold text-base-content/80'>
                   Curated presets
@@ -923,7 +922,7 @@ export default function HomePage() {
                   Start from modern open-weight models with known serving notes.
                 </p>
               </div>
-              <span className='badge badge-outline'>
+              <span className='badge badge-outline shrink-0 whitespace-nowrap'>
                 {modelPresets.length} presets · {featuredPresets.length}{' '}
                 featured
               </span>
@@ -1011,22 +1010,22 @@ export default function HomePage() {
               {
                 label: 'Weights',
                 valueGB: memoryBreakdown.weightsGB,
-                color: 'bg-sky-500',
+                color: 'bg-lab-aqua',
               },
               {
                 label: 'KV',
                 valueGB: memoryBreakdown.kvCacheGB,
-                color: 'bg-violet-500',
+                color: 'bg-lab-violet',
               },
               {
                 label: 'Activations',
                 valueGB: memoryBreakdown.activationsGB,
-                color: 'bg-amber-500',
+                color: 'bg-lab-amber',
               },
               {
                 label: 'Overhead',
                 valueGB: memoryBreakdown.overheadGB,
-                color: 'bg-slate-400',
+                color: 'bg-graphite-70',
               },
             ]}
             gpuName={selectedGpu.name}
@@ -1666,19 +1665,19 @@ export default function HomePage() {
                         {
                           label: 'Model weights',
                           valueGB: memoryBreakdown.weightsGB,
-                          color: 'bg-sky-500',
+                          color: 'bg-lab-aqua',
                         },
                         {
                           label: 'KV cache',
                           valueGB: memoryBreakdown.kvCacheGB,
-                          color: 'bg-violet-500',
+                          color: 'bg-lab-violet',
                         },
                         ...(memoryBreakdown.activationsGB > 0
                           ? [
                               {
                                 label: 'Activations',
                                 valueGB: memoryBreakdown.activationsGB,
-                                color: 'bg-amber-500',
+                                color: 'bg-lab-amber',
                               },
                             ]
                           : []),
@@ -1687,7 +1686,7 @@ export default function HomePage() {
                               {
                                 label: 'Optimizer state',
                                 valueGB: memoryBreakdown.optimizerGB,
-                                color: 'bg-orange-600',
+                                color: 'bg-lab-sand',
                               },
                             ]
                           : []),
@@ -1696,14 +1695,14 @@ export default function HomePage() {
                               {
                                 label: 'Recurrent/state cache',
                                 valueGB: memoryBreakdown.stateCacheGB,
-                                color: 'bg-fuchsia-500',
+                                color: 'bg-lab-green',
                               },
                             ]
                           : []),
                         {
                           label: 'Framework overhead',
                           valueGB: memoryBreakdown.overheadGB,
-                          color: 'bg-slate-400',
+                          color: 'bg-graphite-70',
                         },
                       ]}
                       fits={selectedHardwareFit.fits}

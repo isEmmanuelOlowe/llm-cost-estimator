@@ -22,13 +22,41 @@ const colors: Record<
   ModelGraphNode['kind'],
   { fill: string; stroke: string; badge: string }
 > = {
-  input: { fill: '#172238', stroke: '#818cf8', badge: '#6366f1' },
-  normalization: { fill: '#173044', stroke: '#0ea5e9', badge: '#06b6d4' },
-  attention: { fill: '#321b35', stroke: '#ec4899', badge: '#ec4899' },
-  routing: { fill: '#3b2b16', stroke: '#f59e0b', badge: '#f59e0b' },
-  mlp: { fill: '#123534', stroke: '#14b8a6', badge: '#14b8a6' },
-  residual: { fill: '#14362e', stroke: '#10b981', badge: '#10b981' },
-  output: { fill: '#392028', stroke: '#fb7185', badge: '#fb7185' },
+  input: {
+    fill: 'var(--graph-input-fill)',
+    stroke: 'var(--graph-input-stroke)',
+    badge: 'var(--graph-input-stroke)',
+  },
+  normalization: {
+    fill: 'var(--graph-normalization-fill)',
+    stroke: 'var(--graph-normalization-stroke)',
+    badge: 'var(--graph-normalization-stroke)',
+  },
+  attention: {
+    fill: 'var(--graph-attention-fill)',
+    stroke: 'var(--graph-attention-stroke)',
+    badge: 'var(--graph-attention-stroke)',
+  },
+  routing: {
+    fill: 'var(--graph-routing-fill)',
+    stroke: 'var(--graph-routing-stroke)',
+    badge: 'var(--graph-routing-stroke)',
+  },
+  mlp: {
+    fill: 'var(--graph-mlp-fill)',
+    stroke: 'var(--graph-mlp-stroke)',
+    badge: 'var(--graph-mlp-stroke)',
+  },
+  residual: {
+    fill: 'var(--graph-residual-fill)',
+    stroke: 'var(--graph-residual-stroke)',
+    badge: 'var(--graph-residual-stroke)',
+  },
+  output: {
+    fill: 'var(--graph-output-fill)',
+    stroke: 'var(--graph-output-stroke)',
+    badge: 'var(--graph-output-stroke)',
+  },
 };
 
 const graphViewportHeight = 820;
@@ -147,7 +175,7 @@ function GraphNode({
         height={node.height}
         rx='16'
         fill={color.fill}
-        stroke={selected ? '#f8fafc' : color.stroke}
+        stroke={selected ? 'var(--graph-selection)' : color.stroke}
         strokeWidth={selected ? 4 : 2}
       />
       <rect width={node.width} height='6' rx='3' fill={color.badge} />
@@ -156,7 +184,7 @@ function GraphNode({
           key={`title-${line}`}
           x='16'
           y={30 + index * 19}
-          fill='#f8fafc'
+          fill='var(--graph-text)'
           fontSize='15'
           fontWeight='700'
         >
@@ -180,7 +208,7 @@ function GraphNode({
                   width={width}
                   height='28'
                   rx='7'
-                  fill='#0b1220'
+                  fill='var(--graph-inner)'
                   stroke={color.stroke}
                   strokeOpacity='0.75'
                 />
@@ -188,7 +216,7 @@ function GraphNode({
                   x={width / 2}
                   y='18'
                   textAnchor='middle'
-                  fill='#e2e8f0'
+                  fill='var(--graph-text)'
                   fontSize='8.5'
                   fontWeight='600'
                 >
@@ -204,7 +232,7 @@ function GraphNode({
             key={`shape-${line}`}
             x='16'
             y={72 + index * 14}
-            fill='#cbd5e1'
+            fill='var(--graph-muted)'
             fontSize='10'
             fontFamily='ui-monospace, monospace'
           >
@@ -408,7 +436,7 @@ export default function ArchitectureGraphCanvas({
 
   return (
     <div
-      className='overflow-hidden rounded-2xl border border-base-300 bg-[#10151f]'
+      className='overflow-hidden rounded-2xl border border-base-300 bg-[var(--graph-canvas)]'
       data-testid='architecture-graph-canvas'
     >
       <div className='flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-3 text-xs text-base-content/70'>
@@ -456,7 +484,11 @@ export default function ArchitectureGraphCanvas({
           onPointerCancel={handlePointerUp}
           onPointerLeave={handlePointerUp}
         >
-          <rect width={graph.width} height={graph.height} fill='#10151f' />
+          <rect
+            width={graph.width}
+            height={graph.height}
+            fill='var(--graph-canvas)'
+          />
           {graph.blockBounds && (
             <>
               <rect
@@ -465,14 +497,14 @@ export default function ArchitectureGraphCanvas({
                 width={graph.blockBounds.width}
                 height={graph.blockBounds.height}
                 rx='24'
-                fill='#161d29'
-                stroke='#64748b'
+                fill='var(--graph-block)'
+                stroke='var(--graph-block-stroke)'
                 strokeDasharray='8 8'
               />
               <text
                 x={graph.blockBounds.x + 24}
                 y={graph.blockBounds.y + 32}
-                fill='#e2e8f0'
+                fill='var(--graph-text)'
                 fontSize='17'
                 fontWeight='700'
               >
@@ -485,13 +517,13 @@ export default function ArchitectureGraphCanvas({
                   width='126'
                   height='38'
                   rx='19'
-                  fill='#4f46e5'
-                  stroke='#a5b4fc'
+                  fill='var(--color-primary)'
+                  stroke='var(--color-secondary)'
                 />
                 <text
                   x='63'
                   y='25'
-                  fill='#fff'
+                  fill='var(--color-primary-content)'
                   fontSize='15'
                   fontWeight='800'
                   textAnchor='middle'
@@ -509,10 +541,10 @@ export default function ArchitectureGraphCanvas({
             const positionedTo = { ...to, ...getPosition(to) };
             const stroke =
               edge.kind === 'residual'
-                ? '#f59e0b'
+                ? 'var(--graph-residual)'
                 : edge.kind === 'shared'
-                  ? '#a78bfa'
-                  : '#94a3b8';
+                  ? 'var(--graph-shared)'
+                  : 'var(--graph-flow)';
             return (
               <g key={edge.id} pointerEvents='none'>
                 <path
@@ -547,7 +579,7 @@ export default function ArchitectureGraphCanvas({
               orient='auto'
               markerUnits='strokeWidth'
             >
-              <path d='M 0 0 L 10 5 L 0 10 z' fill='#94a3b8' />
+              <path d='M 0 0 L 10 5 L 0 10 z' fill='var(--graph-flow)' />
             </marker>
           </defs>
           {graph.nodes.map((node) => (

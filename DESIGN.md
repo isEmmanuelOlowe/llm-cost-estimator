@@ -5,11 +5,11 @@
 - Status: Active draft
 - Last refreshed: 2026-08-24
 - Primary product surfaces: model discovery, architecture exploration, resource estimation, hardware fit, and cost projection.
-- Evidence reviewed: `src/pages/index.tsx`, `src/styles/globals.css`, `tailwind.config.mjs`, `src/components/model/*`, `README.md`, the supplied UI screenshot, MDN wheel-event guidance, W3C SVG accessibility requirements, GitHub Primer progressive-disclosure guidance, and Microsoft Research overview/detail guidance.
+- Evidence reviewed: `src/pages/index.tsx`, `src/styles/globals.css`, `tailwind.config.mjs`, `src/components/model/*`, `README.md`, the supplied UI screenshots, and the canonical LABIIUM theme sources in `../labiium_web/src/app/globals.css`, `../labiium_web/src/lib/site-theme.ts`, and `../labiium_web/src/components/layout/ThemeCycleButton.tsx`.
 
 ## Brand
 
-- Personality: technical, calm, investigative, trustworthy.
+- Personality: LABIIUM photonic—technical, calm, investigative, trustworthy, with restrained optical depth rather than generic dashboard chrome.
 - Trust signals: explicit provenance, immutable revisions, exact-versus-heuristic labels, source links, visible assumptions, and dated provider pricing tied to exact hardware.
 - Avoid: generic “calculator” branding, unexplained AI hype, dense dashboard chrome, and unqualified accuracy claims.
 
@@ -43,10 +43,11 @@
 
 ## Visual language
 
-- Color: deep slate canvas with cool blue/violet primary actions; use semantic green/amber/red only for fit, confidence, and warnings.
-- Typography: Inter, strong compact headings, readable 14–16px body text, monospace only for tensor shapes and identifiers.
+- Color: use the LABIIUM Photon Palette exactly: photon black `#0b0e11`, photon white `#f5f7fa`, graphite surfaces, lab violet `#5333ed`, lab aqua `#04e2dc`, lab green `#12d88d`, lab amber `#ffb02e`, and lab sand `#efd8b5`.
+- Themes: share LABIIUM's `System → Paper → Obsidian → Photonic` preference cycle and `labiium:theme` storage key so user preference follows across properties.
+- Typography: Inter for UI/body, Plus Jakarta Sans 700–800 for display headings, and IBM Plex Mono 400/600 only for tensor shapes and identifiers.
 - Spacing/layout rhythm: generous section spacing, compact control groups, max-width workspace, and a clear two-column results layout on desktop.
-- Shape/radius/elevation: 14–18px cards, restrained borders, subtle depth, and no excessive shadows.
+- Shape/radius/elevation: 14–20px glass cards in Photonic, flat hairline cards in Paper/Obsidian, restrained blur, and LABIIUM beam gradients for primary actions.
 - Motion: short transitions for tabs, zoom, and selection; honor reduced-motion preferences.
 - Imagery/iconography: simple line/icon glyphs and semantic diagrams; no decorative stock imagery.
 
