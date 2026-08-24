@@ -430,6 +430,52 @@ html[data-site-theme='obsidian'] {
     background: color-mix(in srgb, var(--color-base-content) 9%, transparent);
     color: var(--color-base-content);
   }
+
+  .github-nav-link {
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--color-lab-aqua) 34%, transparent);
+    background: linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--color-lab-violet) 18%, transparent),
+      color-mix(in srgb, var(--color-lab-aqua) 11%, transparent)
+    );
+    color: var(--color-base-content);
+    box-shadow: 0 10px 24px -18px var(--color-lab-aqua);
+    transition:
+      transform 220ms var(--ease-photonic),
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      background 220ms ease;
+  }
+
+  .github-nav-link:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-lab-aqua) 66%, transparent);
+    background: linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--color-lab-violet) 28%, transparent),
+      color-mix(in srgb, var(--color-lab-aqua) 18%, transparent)
+    );
+    box-shadow: 0 14px 30px -17px var(--color-lab-aqua);
+  }
+
+  .github-nav-link:focus-visible {
+    outline: 2px solid var(--color-lab-aqua);
+    outline-offset: 3px;
+  }
+
+  .graph-scrollbar {
+    width: 0.85rem;
+    height: 100%;
+    writing-mode: vertical-lr;
+    accent-color: var(--color-lab-aqua);
+    cursor: ns-resize;
+  }
+
+  .graph-scrollbar:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+  }
 }
 
 html[data-site-theme='paper'] body,

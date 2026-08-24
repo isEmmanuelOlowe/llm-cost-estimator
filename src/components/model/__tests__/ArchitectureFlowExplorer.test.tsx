@@ -26,6 +26,9 @@ describe('ArchitectureFlowExplorer', () => {
       0,
     );
     expect(screen.getByText('× 32 layers')).toBeInTheDocument();
+    expect(
+      screen.getByRole('slider', { name: 'Graph vertical position' }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     expect(screen.getByText('110%')).toBeInTheDocument();

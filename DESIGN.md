@@ -54,7 +54,7 @@
 ## Components
 
 - Existing components to reuse: DaisyUI controls, `Seo`, link/button primitives, `ModelEvidencePanel`, `ModelArchitectureDiagram`, `ArchitectureFlowExplorer`, and `KvCacheScalingCard`.
-- New/changed components: deployment decision path, compact graph workspace with adjacent inspector, focused syntax-highlighted source modal, semantic graph nodes, disclosure-based advanced controls, and a workload-driven multi-GPU training planner.
+- New/changed components: deployment decision path, compact graph workspace with adjacent inspector and position rail, focused syntax-highlighted source modal, semantic graph nodes, named license guidance popover, disclosure-based advanced controls, and a workload-driven multi-GPU training planner.
 - Variants and states: loading, error, stale query, source unavailable, heuristic, exact, fits, does-not-fit, selected flow node, zoomed flow.
 - Token/component ownership: global theme stays in `globals.css`/DaisyUI; page-specific composition stays in `src/pages/index.tsx`; reusable model visuals stay under `src/components/model`.
 

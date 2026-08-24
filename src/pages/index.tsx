@@ -1,5 +1,6 @@
 import Head from 'next/head';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FaGithub } from 'react-icons/fa';
 
 import {
   inspectHuggingFaceModel,
@@ -13,6 +14,7 @@ import ThemeCycleButton from '@/components/layout/ThemeCycleButton';
 import DeploymentDecisionPath from '@/components/model/DeploymentDecisionPath';
 import KvCacheScalingCard from '@/components/model/KvCacheScalingCard';
 import ModelArchitectureDiagram from '@/components/model/ModelArchitectureDiagram';
+import ModelLicenseBadge from '@/components/model/ModelLicenseBadge';
 import TrainingPlannerCard from '@/components/model/TrainingPlannerCard';
 import VramUsageBar from '@/components/model/VramUsageBar';
 import Seo from '@/components/Seo';
@@ -106,15 +108,6 @@ const weightFormatBits = Object.fromEntries(
   weightFormatOptions.map((option) => [option.value, option.bits]),
 ) as Record<WeightFormat, PrecisionBits>;
 
-function formatModelLicense(license: string | null | undefined): string {
-  if (!license) return 'License unknown';
-  const normalized = license.toLowerCase();
-  if (normalized === 'apache-2.0') return 'Apache 2.0';
-  if (normalized === 'mit') return 'MIT';
-  if (normalized === 'other') return 'Custom license';
-  return license;
-}
-
 function formatFromArchitecture(
   dtype: string | undefined,
   bits: PrecisionBits,
@@ -130,33 +123,6 @@ function formatFromArchitecture(
   if (bits === 4) return 'int4';
   return 'bf16';
 }
-
-const learningResources = [
-  {
-    title: 'Transformers architecture docs',
-    detail:
-      'Configuration fields, model classes, attention, cache, and implementation references.',
-    href: 'https://huggingface.co/docs/transformers/en/index',
-  },
-  {
-    title: 'Hugging Face model hub',
-    detail:
-      'Compare model cards, revisions, files, safetensors metadata, and licenses.',
-    href: 'https://huggingface.co/models',
-  },
-  {
-    title: 'Model families',
-    detail:
-      'Browse current Gemma, Qwen, DeepSeek, GLM, and other open-weight releases.',
-    href: 'https://huggingface.co/models?pipeline_tag=text-generation&sort=trending',
-  },
-  {
-    title: 'KV cache & serving',
-    detail:
-      'Understand paged attention, continuous batching, quantization, and serving tradeoffs.',
-    href: 'https://huggingface.co/docs/transformers/en/kv_cache',
-  },
-];
 
 function classificationBadgeClass(
   classification: EstimateClassification,
@@ -181,6 +147,7 @@ function formatMemory(value: number): string {
 }
 
 export default function HomePage() {
+  const modelSearchRef = useRef<HTMLDivElement | null>(null);
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
   const [modelQuery, setModelQuery] = useState<string>(DEFAULT_MODEL_ID);
   const [isModelSearchOpen, setIsModelSearchOpen] = useState(false);
@@ -278,6 +245,23 @@ export default function HomePage() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!isModelSearchOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        modelSearchRef.current &&
+        !modelSearchRef.current.contains(target)
+      ) {
+        setIsModelSearchOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    return () =>
+      document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+  }, [isModelSearchOpen]);
 
   const parameterCount = useMemo(
     () => Math.max(parameterBillions, 0) * 10 ** 9,
@@ -945,14 +929,20 @@ export default function HomePage() {
           >
             <ul className='flex min-w-max items-center justify-end gap-1 text-xs font-medium text-base-content/70'>
               {[
-                ['#inspect', 'Inspect'],
-                ['#understand', 'Understand'],
-                ['#estimate', 'Estimate'],
-                ['#hardware', 'Hardware'],
+                ['#inspect', 'Model'],
+                ['#understand', 'Architecture'],
+                [
+                  '#estimate',
+                  mode === 'training' ? 'Training inputs' : 'Workload',
+                ],
+                [
+                  '#hardware',
+                  mode === 'training' ? 'Training plan' : 'Hardware fit',
+                ],
                 ...(mode === 'inference'
                   ? [
                       ['#performance', 'Performance'],
-                      ['#cost', 'Cost'],
+                      ['#cost', 'Cloud cost'],
                     ]
                   : []),
               ].map(([href, label]) => (
@@ -965,37 +955,22 @@ export default function HomePage() {
                   </a>
                 </li>
               ))}
-              <li>
-                <details className='relative'>
-                  <summary className='cursor-pointer list-none rounded-lg px-3 py-2 transition hover:bg-base-100 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'>
-                    Learn
-                  </summary>
-                  <div className='absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-base-300 bg-base-100 p-2 text-left shadow-2xl'>
-                    <div className='px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary'>
-                      Resources
-                    </div>
-                    {learningResources.map((resource) => (
-                      <a
-                        key={resource.title}
-                        href={resource.href}
-                        target='_blank'
-                        rel='noreferrer'
-                        className='block rounded-lg px-3 py-2 transition hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-                      >
-                        <span className='block text-xs font-semibold text-base-content'>
-                          {resource.title} ↗
-                        </span>
-                        <span className='mt-1 block text-[11px] leading-relaxed text-base-content/60'>
-                          {resource.detail}
-                        </span>
-                      </a>
-                    ))}
-                  </div>
-                </details>
-              </li>
             </ul>
           </nav>
           <ThemeCycleButton />
+          <a
+            href='https://github.com/isEmmanuelOlowe/llm-explorer'
+            target='_blank'
+            rel='noreferrer'
+            aria-label='Open LLM Explorer on GitHub'
+            className='github-nav-link inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'
+          >
+            <FaGithub aria-hidden='true' className='size-4' />
+            <span className='hidden sm:inline'>GitHub</span>
+            <span aria-hidden='true' className='hidden text-[10px] sm:inline'>
+              ↗
+            </span>
+          </a>
         </div>
       </div>
       <div
@@ -1023,7 +998,7 @@ export default function HomePage() {
           className='mt-4 scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
         >
           <div className='flex flex-col gap-4 md:flex-row md:items-end'>
-            <div className='relative flex-1'>
+            <div ref={modelSearchRef} className='relative flex-1'>
               <label className='block'>
                 <span className='label-text font-semibold'>
                   Hugging Face model ID or search
@@ -1153,9 +1128,11 @@ export default function HomePage() {
                   <span className='badge badge-primary badge-outline'>
                     {selectedPreset.family}
                   </span>
-                  <span className='badge badge-success badge-outline'>
-                    {formatModelLicense(selectedPreset.license)}
-                  </span>
+                  <ModelLicenseBadge
+                    modelId={selectedPreset.id}
+                    license={selectedPreset.license}
+                    modelUrl={selectedPreset.sourceUrls.api}
+                  />
                   {selectedPreset.releaseSourceUrl && (
                     <a
                       className='link link-primary text-xs'
@@ -1358,7 +1335,7 @@ export default function HomePage() {
         </section>
 
         <section className='mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]'>
-          <div className='space-y-6'>
+          <div className='space-y-6 lg:sticky lg:top-20 lg:self-start'>
             <div
               id='estimate'
               className='scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'

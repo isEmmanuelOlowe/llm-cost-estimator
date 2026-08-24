@@ -35,6 +35,7 @@ LLM Explorer is a static, source-backed workspace for inspecting modern language
 - **Full, LoRA, and QLoRA training planner** with rank/coverage controls, gradient checkpointing, DDP versus FSDP/ZeRO-3 placement, 1–8 GPU exploration, workload-driven runtime, and independent best-cost cloud hardware recommendations.
 - **Topology-aware hardware matching** across individual accelerators, unified-memory systems, and multi-device platforms.
 - **Current source-backed catalogs** with vendor URLs, checked dates, precision labels, topology notes, and cloud-rate provenance.
+- **Named model-license guidance** for common permissive, community, OpenRAIL, OpenMDW, Gemma, Llama, Kimi, and MiniMax terms, with links to authoritative text.
 - **LABIIUM themes** with shared System, Paper, Obsidian, and Photonic appearances and a persisted cross-property preference.
 - **Static and privacy-preserving**: deployable to GitHub Pages with no backend, token collection, checkpoint download, or arbitrary Python execution.
 

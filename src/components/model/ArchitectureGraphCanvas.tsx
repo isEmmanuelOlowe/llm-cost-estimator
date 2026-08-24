@@ -300,6 +300,8 @@ export default function ArchitectureGraphCanvas({
   const storedPan = panState.key === graphKey ? panState.value : { x: 0, y: 0 };
   const viewWidth = graph.width / zoom;
   const viewHeight = graphViewportHeight / zoom;
+  const maxPanX = Math.max(0, graph.width - viewWidth);
+  const maxPanY = Math.max(0, graph.height - viewHeight);
   const interaction = useRef<
     | {
         type: 'pan';
@@ -330,14 +332,14 @@ export default function ArchitectureGraphCanvas({
         x: Math.max(
           0,
           Math.min(
-            Math.max(0, graph.width - viewWidth),
+            maxPanX,
             getPosition(focusedNode).x + focusedNode.width / 2 - viewWidth / 2,
           ),
         ),
         y: Math.max(
           0,
           Math.min(
-            Math.max(0, graph.height - viewHeight),
+            maxPanY,
             getPosition(focusedNode).y +
               focusedNode.height / 2 -
               viewHeight / 2,
@@ -352,11 +354,8 @@ export default function ArchitectureGraphCanvas({
     onFocusComplete?.();
   };
   const clampPan = (candidate: { x: number; y: number }) => ({
-    x: Math.max(0, Math.min(Math.max(0, graph.width - viewWidth), candidate.x)),
-    y: Math.max(
-      0,
-      Math.min(Math.max(0, graph.height - viewHeight), candidate.y),
-    ),
+    x: Math.max(0, Math.min(maxPanX, candidate.x)),
+    y: Math.max(0, Math.min(maxPanY, candidate.y)),
   });
 
   const zoomAt = (
@@ -476,168 +475,199 @@ export default function ArchitectureGraphCanvas({
           Reset graph
         </button>
       </div>
-      <div className='overflow-auto'>
-        <svg
-          ref={svgRef}
-          className='block h-[38rem] min-w-[860px] w-full touch-none select-none'
-          viewBox={`${pan.x} ${pan.y} ${viewWidth} ${viewHeight}`}
-          preserveAspectRatio='xMidYMin meet'
-          role='application'
-          aria-label='Interactive model architecture graph'
-          onWheel={(event) => {
-            if (!event.ctrlKey && !event.metaKey) return;
-            event.preventDefault();
-            zoomAt(zoom + (event.deltaY < 0 ? 0.05 : -0.05), event);
-          }}
-          onPointerDown={(event) => {
-            commitFocus();
-            interaction.current = {
-              type: 'pan',
-              startX: event.clientX,
-              startY: event.clientY,
-              panX: pan.x,
-              panY: pan.y,
-            };
-          }}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-        >
-          <rect
-            width={graph.width}
-            height={graph.height}
-            fill='var(--graph-canvas)'
-          />
-          {graph.blockBounds && (
-            <>
-              <rect
-                x={graph.blockBounds.x}
-                y={graph.blockBounds.y}
-                width={graph.blockBounds.width}
-                height={graph.blockBounds.height}
-                rx='24'
-                fill='var(--graph-block)'
-                stroke='var(--graph-block-stroke)'
-                strokeDasharray='8 8'
-              />
-              <text
-                x={graph.blockBounds.x + 24}
-                y={graph.blockBounds.y + 32}
-                fill='var(--graph-text)'
-                fontSize='17'
-                fontWeight='700'
-              >
-                One transformer block
-              </text>
-              <g
-                transform={`translate(${graph.blockBounds.x + graph.blockBounds.width - 142} ${graph.blockBounds.y - 22})`}
-              >
+      <div className='relative'>
+        <div className='overflow-auto'>
+          <svg
+            ref={svgRef}
+            className='block h-[38rem] min-w-[860px] w-full touch-none select-none'
+            viewBox={`${pan.x} ${pan.y} ${viewWidth} ${viewHeight}`}
+            preserveAspectRatio='xMidYMin meet'
+            role='application'
+            aria-label='Interactive model architecture graph'
+            onWheel={(event) => {
+              if (!event.ctrlKey && !event.metaKey) return;
+              event.preventDefault();
+              zoomAt(zoom + (event.deltaY < 0 ? 0.05 : -0.05), event);
+            }}
+            onPointerDown={(event) => {
+              commitFocus();
+              interaction.current = {
+                type: 'pan',
+                startX: event.clientX,
+                startY: event.clientY,
+                panX: pan.x,
+                panY: pan.y,
+              };
+            }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+          >
+            <rect
+              width={graph.width}
+              height={graph.height}
+              fill='var(--graph-canvas)'
+            />
+            {graph.blockBounds && (
+              <>
                 <rect
-                  width='126'
-                  height='38'
-                  rx='19'
-                  fill='var(--color-primary)'
-                  stroke='var(--color-secondary)'
+                  x={graph.blockBounds.x}
+                  y={graph.blockBounds.y}
+                  width={graph.blockBounds.width}
+                  height={graph.blockBounds.height}
+                  rx='24'
+                  fill='var(--graph-block)'
+                  stroke='var(--graph-block-stroke)'
+                  strokeDasharray='8 8'
                 />
                 <text
-                  x='63'
-                  y='25'
-                  fill='var(--color-primary-content)'
-                  fontSize='15'
-                  fontWeight='800'
-                  textAnchor='middle'
+                  x={graph.blockBounds.x + 24}
+                  y={graph.blockBounds.y + 32}
+                  fill='var(--graph-text)'
+                  fontSize='17'
+                  fontWeight='700'
                 >
-                  × {input.numLayers} layers
+                  One transformer block
                 </text>
-              </g>
-            </>
-          )}
-          {graph.edges.map((edge) => {
-            const from = nodeMap.get(edge.from);
-            const to = nodeMap.get(edge.to);
-            if (!from || !to) return null;
-            const positionedFrom = { ...from, ...getPosition(from) };
-            const positionedTo = { ...to, ...getPosition(to) };
-            const stroke =
-              edge.kind === 'residual'
-                ? 'var(--graph-residual)'
-                : edge.kind === 'shared'
-                  ? 'var(--graph-shared)'
-                  : 'var(--graph-flow)';
-            return (
-              <g key={edge.id} pointerEvents='none'>
-                <path
-                  d={edgePath(positionedFrom, positionedTo, edge.kind)}
-                  fill='none'
-                  stroke={stroke}
-                  strokeWidth={edge.kind === 'flow' ? 3 : 2}
-                  strokeDasharray={edge.kind === 'flow' ? undefined : '7 6'}
-                  markerEnd={`url(#arrow-${edge.kind})`}
-                />
-              </g>
-            );
-          })}
-          <defs>
-            <marker
-              id='arrow-flow'
-              markerWidth='12'
-              markerHeight='12'
-              refX='10'
-              refY='6'
-              orient='auto'
-              markerUnits='userSpaceOnUse'
-            >
-              <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-flow)' />
-            </marker>
-            <marker
-              id='arrow-residual'
-              markerWidth='12'
-              markerHeight='12'
-              refX='10'
-              refY='6'
-              orient='auto'
-              markerUnits='userSpaceOnUse'
-            >
-              <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-residual)' />
-            </marker>
-            <marker
-              id='arrow-shared'
-              markerWidth='12'
-              markerHeight='12'
-              refX='10'
-              refY='6'
-              orient='auto'
-              markerUnits='userSpaceOnUse'
-            >
-              <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-shared)' />
-            </marker>
-          </defs>
-          {graph.nodes.map((node) => (
-            <GraphNode
-              key={node.id}
-              node={node}
-              position={getPosition(node)}
-              selected={selectedNodeId === node.id}
-              onSelect={() => onSelectNode(node.id)}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                commitFocus();
-                const position = getPosition(node);
-                interaction.current = {
-                  type: 'node',
-                  id: node.id,
-                  startX: event.clientX,
-                  startY: event.clientY,
-                  x: position.x,
-                  y: position.y,
-                };
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-              }}
-              showInternals={zoom >= 1.1}
-            />
-          ))}
-        </svg>
+                <g
+                  transform={`translate(${graph.blockBounds.x + graph.blockBounds.width - 142} ${graph.blockBounds.y - 22})`}
+                >
+                  <rect
+                    width='126'
+                    height='38'
+                    rx='19'
+                    fill='var(--color-primary)'
+                    stroke='var(--color-secondary)'
+                  />
+                  <text
+                    x='63'
+                    y='25'
+                    fill='var(--color-primary-content)'
+                    fontSize='15'
+                    fontWeight='800'
+                    textAnchor='middle'
+                  >
+                    × {input.numLayers} layers
+                  </text>
+                </g>
+              </>
+            )}
+            {graph.edges.map((edge) => {
+              const from = nodeMap.get(edge.from);
+              const to = nodeMap.get(edge.to);
+              if (!from || !to) return null;
+              const positionedFrom = { ...from, ...getPosition(from) };
+              const positionedTo = { ...to, ...getPosition(to) };
+              const stroke =
+                edge.kind === 'residual'
+                  ? 'var(--graph-residual)'
+                  : edge.kind === 'shared'
+                    ? 'var(--graph-shared)'
+                    : 'var(--graph-flow)';
+              return (
+                <g key={edge.id} pointerEvents='none'>
+                  <path
+                    d={edgePath(positionedFrom, positionedTo, edge.kind)}
+                    fill='none'
+                    stroke={stroke}
+                    strokeWidth={edge.kind === 'flow' ? 3 : 2}
+                    strokeDasharray={edge.kind === 'flow' ? undefined : '7 6'}
+                    markerEnd={`url(#arrow-${edge.kind})`}
+                  />
+                </g>
+              );
+            })}
+            <defs>
+              <marker
+                id='arrow-flow'
+                markerWidth='12'
+                markerHeight='12'
+                refX='10'
+                refY='6'
+                orient='auto'
+                markerUnits='userSpaceOnUse'
+              >
+                <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-flow)' />
+              </marker>
+              <marker
+                id='arrow-residual'
+                markerWidth='12'
+                markerHeight='12'
+                refX='10'
+                refY='6'
+                orient='auto'
+                markerUnits='userSpaceOnUse'
+              >
+                <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-residual)' />
+              </marker>
+              <marker
+                id='arrow-shared'
+                markerWidth='12'
+                markerHeight='12'
+                refX='10'
+                refY='6'
+                orient='auto'
+                markerUnits='userSpaceOnUse'
+              >
+                <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-shared)' />
+              </marker>
+            </defs>
+            {graph.nodes.map((node) => (
+              <GraphNode
+                key={node.id}
+                node={node}
+                position={getPosition(node)}
+                selected={selectedNodeId === node.id}
+                onSelect={() => onSelectNode(node.id)}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  commitFocus();
+                  const position = getPosition(node);
+                  interaction.current = {
+                    type: 'node',
+                    id: node.id,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    x: position.x,
+                    y: position.y,
+                  };
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                }}
+                showInternals={zoom >= 1.1}
+              />
+            ))}
+          </svg>
+        </div>
+        <div
+          className='absolute bottom-3 right-3 top-3 z-10 flex w-8 flex-col items-center gap-2 rounded-full border border-base-300 bg-base-200/90 px-1.5 py-2 shadow-lg backdrop-blur'
+          title='Scroll through the graph or drag the canvas'
+        >
+          <span aria-hidden='true' className='text-xs font-bold text-secondary'>
+            ↕
+          </span>
+          <label className='sr-only' htmlFor='architecture-vertical-position'>
+            Graph vertical position
+          </label>
+          <input
+            id='architecture-vertical-position'
+            className='graph-scrollbar min-h-24 flex-1'
+            type='range'
+            min='0'
+            max={Math.max(1, maxPanY)}
+            step='1'
+            value={Math.min(maxPanY, pan.y)}
+            disabled={maxPanY <= 0}
+            onPointerDown={commitFocus}
+            onChange={(event) => {
+              setPanState({
+                key: graphKey,
+                value: clampPan({ x: pan.x, y: Number(event.target.value) }),
+              });
+              onFocusComplete?.();
+            }}
+          />
+        </div>
       </div>
     </div>
   );
