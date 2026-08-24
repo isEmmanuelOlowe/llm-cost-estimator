@@ -105,6 +105,24 @@ function edgePath(
   };
   const toCenter = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
   const sameRow = Math.abs(fromCenter.y - toCenter.y) < 4;
+  if (kind === 'residual' && sameRow) {
+    const start = { x: from.x + from.width, y: fromCenter.y };
+    const end = { x: toCenter.x, y: to.y };
+    const railY = Math.min(from.y, to.y) - 50;
+    return `M ${start.x} ${start.y} C ${start.x + 24} ${start.y}, ${start.x + 24} ${railY}, ${start.x + 48} ${railY} L ${end.x - 32} ${railY} C ${end.x - 8} ${railY}, ${end.x} ${railY}, ${end.x} ${end.y}`;
+  }
+  if (kind === 'residual') {
+    const start = { x: fromCenter.x, y: from.y + from.height };
+    const end = { x: toCenter.x, y: to.y };
+    const railY = end.y - 38;
+    return `M ${start.x} ${start.y} C ${start.x} ${railY}, ${start.x + 20} ${railY}, ${start.x + 44} ${railY} L ${end.x - 36} ${railY} C ${end.x - 12} ${railY}, ${end.x} ${railY}, ${end.x} ${end.y}`;
+  }
+  if (kind === 'shared') {
+    const start = { x: from.x + from.width, y: fromCenter.y };
+    const end = { x: to.x + to.width, y: toCenter.y };
+    const railX = Math.max(start.x, end.x) + 48;
+    return `M ${start.x} ${start.y} C ${railX} ${start.y}, ${railX} ${start.y}, ${railX} ${start.y + 24} L ${railX} ${end.y - 24} C ${railX} ${end.y}, ${railX} ${end.y}, ${end.x} ${end.y}`;
+  }
   if (sameRow) {
     const rightward = toCenter.x >= fromCenter.x;
     const start = {
@@ -127,15 +145,17 @@ function edgePath(
     x: toCenter.x,
     y: downward ? to.y : to.y + to.height,
   };
-  if (kind === 'residual' || kind === 'shared') {
-    const side =
-      kind === 'residual'
-        ? Math.min(from.x, to.x) - 70
-        : Math.max(from.x + from.width, to.x + to.width) + 70;
-    return `M ${start.x} ${start.y} C ${side} ${start.y}, ${side} ${end.y}, ${end.x} ${end.y}`;
+  if (Math.abs(end.x - start.x) < 4) {
+    const middleY = start.y + (end.y - start.y) / 2;
+    return `M ${start.x} ${start.y} C ${start.x} ${middleY}, ${end.x} ${middleY}, ${end.x} ${end.y}`;
   }
-  const dy = Math.max(60, Math.abs(end.y - start.y) / 2);
-  return `M ${start.x} ${start.y} C ${start.x} ${start.y + (downward ? dy : -dy)}, ${end.x} ${end.y - (downward ? dy : -dy)}, ${end.x} ${end.y}`;
+  const direction = downward ? 1 : -1;
+  const railY =
+    kind === 'flow' && to.id === 'attention-norm'
+      ? to.y - 24
+      : start.y + ((end.y - start.y) / 2 || 50 * direction);
+  const corner = 24;
+  return `M ${start.x} ${start.y} C ${start.x} ${start.y + corner * direction}, ${start.x} ${railY}, ${start.x + (end.x >= start.x ? corner : -corner)} ${railY} L ${end.x + (end.x >= start.x ? -corner : corner)} ${railY} C ${end.x} ${railY}, ${end.x} ${end.y - corner * direction}, ${end.x} ${end.y}`;
 }
 
 function GraphNode({
@@ -553,33 +573,44 @@ export default function ArchitectureGraphCanvas({
                   stroke={stroke}
                   strokeWidth={edge.kind === 'flow' ? 3 : 2}
                   strokeDasharray={edge.kind === 'flow' ? undefined : '7 6'}
-                  markerEnd='url(#arrow)'
+                  markerEnd={`url(#arrow-${edge.kind})`}
                 />
-                {edge.label && (
-                  <text
-                    x={(positionedFrom.x + positionedTo.x) / 2}
-                    y={(positionedFrom.y + positionedTo.y) / 2 - 8}
-                    fill={stroke}
-                    fontSize='10'
-                    textAnchor='middle'
-                  >
-                    {edge.label}
-                  </text>
-                )}
               </g>
             );
           })}
           <defs>
             <marker
-              id='arrow'
-              markerWidth='10'
-              markerHeight='10'
-              refX='8'
-              refY='5'
+              id='arrow-flow'
+              markerWidth='12'
+              markerHeight='12'
+              refX='10'
+              refY='6'
               orient='auto'
-              markerUnits='strokeWidth'
+              markerUnits='userSpaceOnUse'
             >
-              <path d='M 0 0 L 10 5 L 0 10 z' fill='var(--graph-flow)' />
+              <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-flow)' />
+            </marker>
+            <marker
+              id='arrow-residual'
+              markerWidth='12'
+              markerHeight='12'
+              refX='10'
+              refY='6'
+              orient='auto'
+              markerUnits='userSpaceOnUse'
+            >
+              <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-residual)' />
+            </marker>
+            <marker
+              id='arrow-shared'
+              markerWidth='12'
+              markerHeight='12'
+              refX='10'
+              refY='6'
+              orient='auto'
+              markerUnits='userSpaceOnUse'
+            >
+              <path d='M 0 0 L 12 6 L 0 12 z' fill='var(--graph-shared)' />
             </marker>
           </defs>
           {graph.nodes.map((node) => (

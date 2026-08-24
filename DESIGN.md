@@ -22,7 +22,7 @@
 ## Personas and jobs
 
 - Primary personas: local model builders, ML engineers, infrastructure planners, and technically curious learners.
-- User jobs: inspect a checkpoint, understand its attention/MLP/MoE structure, estimate KV-cache growth, compare hardware, and validate a deployment budget.
+- User jobs: inspect a checkpoint, understand its attention/MLP/MoE structure, estimate KV-cache growth, compare hardware, plan full/LoRA/QLoRA training, and validate deployment or training budgets.
 - Key contexts of use: desktop research, laptop/local-GPU planning, and responsive reference browsing.
 
 ## Information architecture
@@ -54,7 +54,7 @@
 ## Components
 
 - Existing components to reuse: DaisyUI controls, `Seo`, link/button primitives, `ModelEvidencePanel`, `ModelArchitectureDiagram`, `ArchitectureFlowExplorer`, and `KvCacheScalingCard`.
-- New/changed components: deployment decision path, compact graph workspace with adjacent inspector, semantic graph nodes, and disclosure-based advanced controls.
+- New/changed components: deployment decision path, compact graph workspace with adjacent inspector, focused syntax-highlighted source modal, semantic graph nodes, disclosure-based advanced controls, and a workload-driven multi-GPU training planner.
 - Variants and states: loading, error, stale query, source unavailable, heuristic, exact, fits, does-not-fit, selected flow node, zoomed flow.
 - Token/component ownership: global theme stays in `globals.css`/DaisyUI; page-specific composition stays in `src/pages/index.tsx`; reusable model visuals stay under `src/components/model`.
 

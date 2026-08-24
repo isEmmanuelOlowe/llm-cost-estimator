@@ -18,6 +18,10 @@
   --color-lab-green: #12d88d;
   --color-lab-amber: #ffb02e;
   --color-lab-sand: #efd8b5;
+  --color-memory-weights: #04e2dc;
+  --color-memory-kv: #8b6cff;
+  --color-memory-activations: #ffb02e;
+  --color-memory-overhead: #42454a;
 
   --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -121,6 +125,10 @@ html[data-site-theme='paper'] {
   --color-lab-aqua: #1f6fbf;
   --color-lab-green: #0f7b6c;
   --color-lab-amber: #d9730d;
+  --color-memory-weights: #1f6fbf;
+  --color-memory-kv: #6940a5;
+  --color-memory-activations: #d9730d;
+  --color-memory-overhead: #b7b5b0;
 
   --color-base-100: #ffffff;
   --color-base-200: #f7f6f3;
@@ -189,6 +197,10 @@ html[data-site-theme='obsidian'] {
   --color-lab-aqua: #529cca;
   --color-lab-green: #4dab9a;
   --color-lab-amber: #ffdc49;
+  --color-memory-weights: #529cca;
+  --color-memory-kv: #9b7fd1;
+  --color-memory-activations: #ffdc49;
+  --color-memory-overhead: #5a5a58;
 
   --color-base-100: #202020;
   --color-base-200: #191919;

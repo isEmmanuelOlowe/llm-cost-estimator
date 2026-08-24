@@ -1,4 +1,6 @@
 interface DeploymentDecisionPathProps {
+  eyebrow?: string;
+  title?: string;
   modelLabel: string;
   parameterBillions: number;
   layers: number;
@@ -15,6 +17,7 @@ interface DeploymentDecisionPathProps {
   fits: boolean;
   headroomGB: number;
   tokensPerSecond?: number;
+  performanceLabel?: string;
   projectedCost?: number;
   cloudCostLabel?: string;
 }
@@ -25,6 +28,8 @@ function format(value: number, digits = 1): string {
 }
 
 export default function DeploymentDecisionPath({
+  eyebrow = 'Deployment path',
+  title = 'What this model needs—at a glance',
   modelLabel,
   parameterBillions,
   layers,
@@ -37,6 +42,7 @@ export default function DeploymentDecisionPath({
   fits,
   headroomGB,
   tokensPerSecond,
+  performanceLabel = 'Decode',
   projectedCost,
   cloudCostLabel,
 }: DeploymentDecisionPathProps) {
@@ -50,13 +56,13 @@ export default function DeploymentDecisionPath({
       <div className='flex flex-col gap-3 md:flex-row md:items-end md:justify-between'>
         <div>
           <div className='text-[10px] font-semibold uppercase tracking-[0.2em] text-primary'>
-            Deployment path
+            {eyebrow}
           </div>
           <h2
             id='deployment-path-title'
             className='mt-1 text-2xl font-semibold'
           >
-            What this model needs—at a glance
+            {title}
           </h2>
         </div>
         <div className='flex flex-wrap gap-2 text-xs'>
@@ -198,7 +204,7 @@ export default function DeploymentDecisionPath({
           </div>
           <div className='mt-3 grid grid-cols-2 gap-2 border-t border-base-300/70 pt-3 text-xs'>
             <div>
-              <div className='text-base-content/55'>Decode</div>
+              <div className='text-base-content/55'>{performanceLabel}</div>
               <div className='mt-1 font-bold'>
                 {tokensPerSecond
                   ? `${format(tokensPerSecond, 2)} tok/s`

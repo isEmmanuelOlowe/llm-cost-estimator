@@ -32,6 +32,7 @@ LLM Explorer is a static, source-backed workspace for inspecting modern language
 - **Pinned Hugging Face inspection** using immutable revisions, `config.json`, model metadata, bounded safetensors header requests, and linked Transformers implementations.
 - **Architecture-aware caching** for GQA/MQA, local/global attention schedules, compressed attention, and recurrent/state-space layers.
 - **Inference and training memory models** with weight format, KV precision, concurrency/batch size, optimiser, and explicit overhead controls.
+- **Full, LoRA, and QLoRA training planner** with rank/coverage controls, gradient checkpointing, DDP versus FSDP/ZeRO-3 placement, 1–8 GPU exploration, workload-driven runtime, and independent best-cost cloud hardware recommendations.
 - **Topology-aware hardware matching** across individual accelerators, unified-memory systems, and multi-device platforms.
 - **Current source-backed catalogs** with vendor URLs, checked dates, precision labels, topology notes, and cloud-rate provenance.
 - **LABIIUM themes** with shared System, Paper, Obsidian, and Photonic appearances and a persisted cross-property preference.
@@ -48,6 +49,7 @@ The interface labels exact arithmetic, sourced evidence, and estimates separatel
 | Typed hybrid/state cache           | Architecture-aware arithmetic      | Source-backed layer schedules and state definitions              |
 | Cloud cost                         | Exact arithmetic over a dated rate | Exact selected-GPU mapping or explicit custom quote × runtime    |
 | Activations and framework overhead | Estimate                           | Runtime-dependent heuristics                                     |
+| Training memory and duration       | Estimate                           | Adaptation method, sharding, activation, and compute assumptions |
 | Throughput and latency             | Estimate                           | Compute and bandwidth roofline ceilings, not a benchmark         |
 | Hardware fit                       | Estimate                           | Capacity/topology screening; runtime placement still matters     |
 

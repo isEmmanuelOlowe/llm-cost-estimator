@@ -60,6 +60,17 @@ describe('ArchitectureFlowExplorer', () => {
     ).toBeInTheDocument();
   });
 
+  it('uses compact, screen-space arrowheads', () => {
+    const { container } = render(<ArchitectureFlowExplorer {...props} />);
+    const marker = container.querySelector('marker#arrow-flow');
+
+    expect(marker).toHaveAttribute('markerWidth', '12');
+    expect(marker).toHaveAttribute('markerHeight', '12');
+    expect(marker).toHaveAttribute('markerUnits', 'userSpaceOnUse');
+    expect(container.querySelector('marker#arrow-residual')).toBeTruthy();
+    expect(container.querySelector('marker#arrow-shared')).toBeTruthy();
+  });
+
   it('shows implementation source inline when available', () => {
     render(
       <ArchitectureFlowExplorer
@@ -72,6 +83,10 @@ describe('ArchitectureFlowExplorer', () => {
       />,
     );
 
-    expect(screen.getByText(/class LlamaAttention/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'View highlighted source' }),
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('class')).toBeInTheDocument();
   });
 });

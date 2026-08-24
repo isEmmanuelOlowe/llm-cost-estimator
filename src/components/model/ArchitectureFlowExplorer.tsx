@@ -8,6 +8,7 @@ import {
 } from '@/lib/model-architecture';
 
 import ArchitectureGraphCanvas from './ArchitectureGraphCanvas';
+import PythonSourceModal from './PythonSourceModal';
 
 interface ArchitectureFlowExplorerProps extends ArchitectureFlowInput {
   architectureLabel?: string;
@@ -34,6 +35,7 @@ export default function ArchitectureFlowExplorer({
   const [view, setView] = useState<'overview' | 'block'>('block');
   const [zoom, setZoom] = useState(1);
   const [selectedNodeId, setSelectedNodeId] = useState('attention');
+  const [sourceRequested, setSourceRequested] = useState(false);
   const [focusNodeId, setFocusNodeId] = useState<string | undefined>(
     'attention',
   );
@@ -193,24 +195,25 @@ export default function ArchitectureFlowExplorer({
                   type='button'
                   className='btn btn-primary btn-xs mt-3 block'
                   disabled={isLoadingImplementation}
-                  onClick={onLoadImplementation}
+                  onClick={() => {
+                    setSourceRequested(true);
+                    onLoadImplementation();
+                  }}
                 >
                   {isLoadingImplementation
                     ? 'Loading implementation…'
-                    : 'Load implementation source'}
+                    : 'Load source for this component'}
                 </button>
               )}
-              {sourcePreview &&
-                selectedNode.sourceFile === sourcePreview.name && (
-                  <details className='mt-4 rounded-lg border border-base-300 bg-base-100 p-3'>
-                    <summary className='cursor-pointer text-xs font-semibold'>
-                      Code: {sourcePreview.name}
-                    </summary>
-                    <pre className='mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-base-content/75'>
-                      {sourcePreview.content}
-                    </pre>
-                  </details>
-                )}
+              {sourcePreview && (
+                <button
+                  type='button'
+                  className='btn btn-primary btn-xs mt-3 block'
+                  onClick={() => setSourceRequested(true)}
+                >
+                  View highlighted source
+                </button>
+              )}
             </>
           ) : (
             <p className='mt-3 text-xs text-base-content/70'>
@@ -279,6 +282,15 @@ export default function ArchitectureFlowExplorer({
           </table>
         </div>
       </details>
+      {sourcePreview && selectedNode && (
+        <PythonSourceModal
+          open={sourceRequested}
+          nodeId={selectedNode.id}
+          nodeLabel={selectedNode.label}
+          source={sourcePreview}
+          onClose={() => setSourceRequested(false)}
+        />
+      )}
     </div>
   );
 }
