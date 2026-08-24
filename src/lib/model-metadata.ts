@@ -16,7 +16,10 @@ export type ParameterSource =
   | 'unknown';
 
 export type EvidenceConfidence =
-  'authoritative' | 'reported' | 'derived' | 'unavailable';
+  | 'authoritative'
+  | 'reported'
+  | 'derived'
+  | 'unavailable';
 
 export interface ModelEvidence {
   label: string;

@@ -3,7 +3,13 @@ import gpus from './gpus.json';
 export type PrecisionBits = 4 | 8 | 16 | 32;
 
 export type WeightFormat =
-  'bf16' | 'fp16' | 'fp8' | 'int8' | 'int4' | 'nvfp4' | 'mxfp4';
+  | 'bf16'
+  | 'fp16'
+  | 'fp8'
+  | 'int8'
+  | 'int4'
+  | 'nvfp4'
+  | 'mxfp4';
 
 export type ExecutionMode = 'inference' | 'training';
 
