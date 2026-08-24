@@ -20,6 +20,24 @@ function kvCacheGB({ sequenceLength, batchSize, numLayers, hiddenSize, bits }) {
   );
 }
 
+function deepseekV4KvCacheGB({ sequenceLength, batchSize, bits }) {
+  const bytes = bitsToBytes(bits);
+  const sliding = 61 * Math.min(sequenceLength, 128) * 512;
+  const compressedSparse = 30 * Math.floor(sequenceLength / 4) * (512 + 128);
+  const heavilyCompressed = 31 * Math.floor(sequenceLength / 128) * 512;
+  return (
+    ((sliding + compressedSparse + heavilyCompressed) * bytes * batchSize) /
+    BYTES_PER_GB
+  );
+}
+
+function inklingSmallKvCacheGB({ sequenceLength, batchSize, bits }) {
+  const bytes = bitsToBytes(bits);
+  const residentTokens =
+    35 * Math.min(sequenceLength, 512) + 7 * sequenceLength;
+  return (residentTokens * 8 * 128 * 2 * bytes * batchSize) / BYTES_PER_GB;
+}
+
 function optimizerGB(parameterCount, bits, multiplier) {
   return (parameterCount * bitsToBytes(bits) * multiplier) / BYTES_PER_GB;
 }
@@ -56,6 +74,16 @@ const cases = [
       bits: 16,
     }),
     3.125,
+  ],
+  [
+    'DeepSeek V4 Pro compressed KV cache (GiB)',
+    deepseekV4KvCacheGB({ sequenceLength: 1048576, batchSize: 1, bits: 16 }),
+    9.6246337890625,
+  ],
+  [
+    'Inkling-Small hybrid KV cache (GiB)',
+    inklingSmallKvCacheGB({ sequenceLength: 1048576, batchSize: 1, bits: 16 }),
+    28.068359375,
   ],
   [
     '3B AdamW optimizer state (GiB)',

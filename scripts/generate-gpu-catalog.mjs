@@ -13,10 +13,31 @@ for (const gpu of gpus) {
     'memory_gb',
     'fp32_tflops',
     'memory_bandwidth_gb_s',
+    'vendor',
+    'architecture',
+    'memory_type',
+    'memory_model',
+    'device_count',
+    'per_device_memory_gb',
+    'source_url',
+    'source_checked_at',
   ]) {
     if (!(key in gpu)) {
       throw new Error(`GPU entry ${gpu.name ?? '(unknown)'} is missing ${key}`);
     }
+  }
+  if (!Number.isFinite(gpu.memory_gb) || gpu.memory_gb <= 0) {
+    throw new Error(`GPU entry ${gpu.name} has invalid aggregate memory`);
+  }
+  if (!Number.isFinite(gpu.device_count) || gpu.device_count < 1) {
+    throw new Error(`GPU entry ${gpu.name} has invalid device count`);
+  }
+  if (
+    !Number.isFinite(gpu.per_device_memory_gb) ||
+    gpu.per_device_memory_gb <= 0 ||
+    gpu.per_device_memory_gb * gpu.device_count > gpu.memory_gb * 1.01
+  ) {
+    throw new Error(`GPU entry ${gpu.name} has inconsistent per-device memory`);
   }
 }
 

@@ -1,6 +1,6 @@
 {
-  "name": "LLM Cost Estimator",
-  "short_name": "LLM Costs",
+  "name": "LLM Explorer",
+  "short_name": "LLM Explorer",
   "icons": [
     {
       "src": "android-chrome-192x192.png",

@@ -5,7 +5,7 @@ import { withBasePath } from '@/lib/site-config';
 export default function Document() {
   return (
     <Html
-      lang='en'
+      lang='en-US'
       style={
         {
           '--font-inter-src': `url('${withBasePath(

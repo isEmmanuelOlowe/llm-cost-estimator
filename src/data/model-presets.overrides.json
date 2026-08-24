@@ -1,5 +1,487 @@
 [
   {
+    "id": "google/gemma-4-12B",
+    "label": "Gemma 4 12B Unified",
+    "family": "Gemma 4",
+    "modelType": "unified",
+    "modality": "multimodal",
+    "parameterCount": 12000000000,
+    "contextLength": 262144,
+    "hiddenSize": 3840,
+    "numLayers": 48,
+    "numHeads": 16,
+    "numKeyValueHeads": 8,
+    "headDim": 256,
+    "intermediateSize": 15360,
+    "vocabSize": 262144,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Encoder-free unified Gemma 4 multimodal model with 256K context."
+  },
+  {
+    "id": "Qwen/Qwen3.8-27B",
+    "label": "Qwen3.8-27B",
+    "family": "Qwen3.8",
+    "modelType": "dense",
+    "modality": "multimodal",
+    "parameterCount": 28000000000,
+    "contextLength": 262144,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Current Qwen3.8 multimodal dense checkpoint with 262K context and GQA."
+  },
+  {
+    "id": "Qwen/Qwen3-32B",
+    "label": "Qwen3-32B",
+    "family": "Qwen3",
+    "modelType": "dense",
+    "modality": "text",
+    "parameterCount": 32000000000,
+    "contextLength": 40960,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Qwen3 dense reasoning model with 32Q/8KV GQA and extended YaRN context."
+  },
+  {
+    "id": "meta-models/Muse-Glimmer-30B",
+    "label": "Muse Glimmer 30B",
+    "family": "Muse Glimmer",
+    "modelType": "multimodal",
+    "modality": "multimodal",
+    "parameterCount": 30000000000,
+    "contextLength": 131072,
+    "hiddenSize": 6656,
+    "numLayers": 52,
+    "numHeads": 32,
+    "numKeyValueHeads": 2,
+    "headDim": 128,
+    "intermediateSize": 19968,
+    "vocabSize": 202048,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      }
+    ],
+    "summary": "Local multimodal agentic model with a perception encoder, hybrid local/global attention, and 131K context."
+  },
+  {
+    "id": "google/gemma-4-26B-A4B",
+    "label": "Gemma 4 26B A4B",
+    "family": "Gemma 4",
+    "modelType": "moe",
+    "modality": "multimodal",
+    "parameterCount": 26000000000,
+    "activeParameterCount": 3800000000,
+    "contextLength": 262144,
+    "hiddenSize": 2816,
+    "numLayers": 30,
+    "numHeads": 16,
+    "numKeyValueHeads": 8,
+    "headDim": 256,
+    "intermediateSize": 2112,
+    "expertIntermediateSize": 704,
+    "numExperts": 128,
+    "numExpertsPerToken": 8,
+    "vocabSize": 262144,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Gemma 4 MoE reasoning model with 3.8B active parameters, 128 experts, and 256K context."
+  },
+  {
+    "id": "google/gemma-4-31B",
+    "label": "Gemma 4 31B",
+    "family": "Gemma 4",
+    "modelType": "dense",
+    "modality": "multimodal",
+    "parameterCount": 31000000000,
+    "contextLength": 262144,
+    "hiddenSize": 5376,
+    "numLayers": 60,
+    "numHeads": 32,
+    "numKeyValueHeads": 16,
+    "headDim": 256,
+    "intermediateSize": 21504,
+    "vocabSize": 262144,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Dense Gemma 4 multimodal model for workstation and server deployment with 256K context."
+  },
+  {
+    "id": "thinkingmachines/Inkling",
+    "label": "Inkling",
+    "family": "Inkling",
+    "modelType": "moe",
+    "modality": "multimodal",
+    "parameterCount": 975000000000,
+    "activeParameterCount": 41000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 6144,
+    "numLayers": 66,
+    "numHeads": 64,
+    "numKeyValueHeads": 8,
+    "headDim": 128,
+    "intermediateSize": 3072,
+    "expertIntermediateSize": 3072,
+    "numExperts": 256,
+    "numExpertsPerToken": 6,
+    "numSharedExperts": 2,
+    "vocabSize": 201024,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      }
+    ],
+    "summary": "Multimodal 1M-context MoE model with 975B total and 41B active parameters; requires large-scale sharding."
+  },
+  {
+    "id": "thinkingmachines/Inkling-Small",
+    "label": "Inkling Small",
+    "family": "Inkling",
+    "modelType": "inkling_mm_model",
+    "modality": "multimodal",
+    "parameterCount": 276000000000,
+    "activeParameterCount": 12000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 4096,
+    "numLayers": 42,
+    "numHeads": 32,
+    "numKeyValueHeads": 8,
+    "headDim": 128,
+    "intermediateSize": 2048,
+    "expertIntermediateSize": 2048,
+    "numExperts": 256,
+    "numExpertsPerToken": 6,
+    "numSharedExperts": 2,
+    "vocabSize": 201024,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      }
+    ],
+    "summary": "Multimodal 276B total / 12B active MoE with 35 local-attention layers, 7 global layers, and 1M context."
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V4-Pro",
+    "label": "DeepSeek-V4-Pro",
+    "family": "DeepSeek V4",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 1600000000000,
+    "activeParameterCount": 49000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 7168,
+    "numLayers": 61,
+    "numHeads": 128,
+    "numKeyValueHeads": 1,
+    "headDim": 512,
+    "expertIntermediateSize": 3072,
+    "numExperts": 384,
+    "numExpertsPerToken": 6,
+    "vocabSize": 129280,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Million-token DeepSeek V4 Pro MoE model with 1.6T total and 49B activated parameters."
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V4-Flash",
+    "label": "DeepSeek-V4-Flash",
+    "family": "DeepSeek V4",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 284000000000,
+    "activeParameterCount": 13000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 4096,
+    "numLayers": 43,
+    "numHeads": 64,
+    "numKeyValueHeads": 1,
+    "headDim": 512,
+    "expertIntermediateSize": 2048,
+    "numExperts": 256,
+    "numExpertsPerToken": 6,
+    "vocabSize": 129280,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Million-token DeepSeek V4 Flash MoE model with 284B total and 13B activated parameters."
+  },
+  {
+    "id": "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16",
+    "label": "Nemotron 3 Nano 4B",
+    "family": "Nemotron 3",
+    "modelType": "nemotron_h",
+    "modality": "text",
+    "parameterCount": 4000000000,
+    "contextLength": 262144,
+    "hiddenSize": 2688,
+    "numLayers": 52,
+    "numHeads": 32,
+    "numKeyValueHeads": 2,
+    "headDim": 128,
+    "intermediateSize": 1856,
+    "expertIntermediateSize": 1856,
+    "numExperts": 128,
+    "numExpertsPerToken": 6,
+    "numSharedExperts": 1,
+    "vocabSize": 131072,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Hybrid Nemotron-H state-space / attention / MoE model; only attention layers retain KV tensors."
+  },
+  {
+    "id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "Nemotron 3 Nano 30B A3B",
+    "family": "Nemotron 3",
+    "modelType": "nemotron_h",
+    "modality": "text",
+    "parameterCount": 30000000000,
+    "activeParameterCount": 3000000000,
+    "contextLength": 262144,
+    "hiddenSize": 2688,
+    "numLayers": 52,
+    "numHeads": 32,
+    "numKeyValueHeads": 2,
+    "headDim": 128,
+    "intermediateSize": 1856,
+    "expertIntermediateSize": 1856,
+    "numExperts": 128,
+    "numExpertsPerToken": 6,
+    "numSharedExperts": 1,
+    "vocabSize": 131072,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Hybrid Nemotron 3 Nano MoE with 6 full-attention layers and recurrent state-space layers."
+  },
+  {
+    "id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+    "label": "Nemotron 3 Super 120B A12B",
+    "family": "Nemotron 3",
+    "modelType": "nemotron_h",
+    "modality": "text",
+    "parameterCount": 120000000000,
+    "activeParameterCount": 12000000000,
+    "contextLength": 262144,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Large hybrid Nemotron 3 Super MoE checkpoint with attention/state-space cache behavior."
+  },
+  {
+    "id": "MiniMaxAI/MiniMax-M3",
+    "label": "MiniMax M3",
+    "family": "MiniMax M3",
+    "modelType": "moe",
+    "modality": "multimodal",
+    "parameterCount": 428000000000,
+    "activeParameterCount": 23000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 6144,
+    "numLayers": 60,
+    "numHeads": 64,
+    "numKeyValueHeads": 4,
+    "headDim": 128,
+    "intermediateSize": 3072,
+    "expertIntermediateSize": 3072,
+    "numExperts": 128,
+    "numExpertsPerToken": 4,
+    "numSharedExperts": 1,
+    "vocabSize": 200064,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      }
+    ],
+    "summary": "Native multimodal MiniMax sparse MoE with 428B total, approximately 23B active, and 1M context.",
+    "remoteCodeRequired": true
+  },
+  {
+    "id": "zai-org/GLM-5.2",
+    "label": "GLM-5.2",
+    "family": "GLM",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 753000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 6144,
+    "numLayers": 78,
+    "numHeads": 64,
+    "numKeyValueHeads": 64,
+    "headDim": 192,
+    "intermediateSize": 12288,
+    "expertIntermediateSize": 2048,
+    "numExperts": 256,
+    "numExpertsPerToken": 8,
+    "numSharedExperts": 1,
+    "vocabSize": 154880,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Current GLM sparse-attention MoE checkpoint with 1M context and 256 routed experts."
+  },
+  {
+    "id": "google/gemma-3-4b-it",
+    "label": "Gemma 3 4B IT",
+    "family": "Gemma 3",
+    "modelType": "multimodal",
+    "modality": "multimodal",
+    "parameterCount": 4300000000,
+    "contextLength": 131072,
+    "hiddenSize": 2560,
+    "numLayers": 34,
+    "numHeads": 8,
+    "numKeyValueHeads": 4,
+    "headDim": 256,
+    "intermediateSize": 10240,
+    "vocabSize": 262208,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Gated Gemma 3 multimodal instruction model; architecture fallback is sourced from the official Transformers configuration because the Hub files are license-gated."
+  },
+  {
+    "id": "Qwen/Qwen3.8-2.4T-A95B",
+    "label": "Qwen3.8-2.4T-A95B",
+    "family": "Qwen3.8",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 2400000000000,
+    "activeParameterCount": 95000000000,
+    "contextLength": 262144,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Frontier-scale Qwen3.8 MoE checkpoint with 2.4T total and 95B active parameters."
+  },
+  {
+    "id": "openai/gpt-oss-120b",
+    "label": "gpt-oss-120b",
+    "family": "gpt-oss",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 120000000000,
+    "contextLength": 131072,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "OpenAI open-weight 120B MoE reasoning model for high-capacity deployments."
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V3.2",
+    "label": "DeepSeek-V3.2",
+    "family": "DeepSeek",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 685000000000,
+    "contextLength": 163840,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "DeepSeek V3.2 MoE reasoning checkpoint with long context and published safetensors metadata."
+  },
+  {
     "id": "Qwen/Qwen3.5-27B",
     "label": "Qwen3.5-27B",
     "family": "Qwen3.5",
@@ -14,10 +496,22 @@
     "vocabSize": 248320,
     "dtypeBits": 16,
     "engineSupport": [
-      { "engine": "vLLM", "status": "stable" },
-      { "engine": "SGLang", "status": "stable" },
-      { "engine": "Transformers", "status": "stable" },
-      { "engine": "KTransformers", "status": "stable" }
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "KTransformers",
+        "status": "stable"
+      }
     ],
     "summary": "Dense multimodal Qwen3.5 checkpoint with 262K native context and official vLLM/SGLang serving recipes."
   },
@@ -35,10 +529,22 @@
     "vocabSize": 248320,
     "dtypeBits": 16,
     "engineSupport": [
-      { "engine": "vLLM", "status": "stable" },
-      { "engine": "SGLang", "status": "stable" },
-      { "engine": "Transformers", "status": "stable" },
-      { "engine": "KTransformers", "status": "stable" }
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      },
+      {
+        "engine": "KTransformers",
+        "status": "stable"
+      }
     ],
     "summary": "MoE Qwen3.5 variant with 35B total / 3B active parameters and 262K native context."
   },
@@ -52,9 +558,18 @@
     "activeParameterCount": 3000000000,
     "contextLength": 262144,
     "engineSupport": [
-      { "engine": "vLLM", "status": "stable" },
-      { "engine": "SGLang", "status": "stable" },
-      { "engine": "Transformers", "status": "stable" }
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
     ],
     "summary": "Coding-focused hybrid architecture with 80B total / 3B active parameters and 262K context."
   },
@@ -68,8 +583,14 @@
     "activeParameterCount": 3600000000,
     "contextLength": 131072,
     "engineSupport": [
-      { "engine": "vLLM", "status": "specialized" },
-      { "engine": "Transformers", "status": "stable" }
+      {
+        "engine": "vLLM",
+        "status": "specialized"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
     ],
     "summary": "OpenAI open-weight reasoning model optimized for low-latency local and specialized deployment."
   },
@@ -83,9 +604,18 @@
     "activeParameterCount": 3000000000,
     "contextLength": 202752,
     "engineSupport": [
-      { "engine": "vLLM", "status": "nightly" },
-      { "engine": "SGLang", "status": "nightly" },
-      { "engine": "Transformers", "status": "stable" }
+      {
+        "engine": "vLLM",
+        "status": "nightly"
+      },
+      {
+        "engine": "SGLang",
+        "status": "nightly"
+      },
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
     ],
     "summary": "Flash-oriented GLM checkpoint whose vLLM and SGLang support currently tracks main or nightly branches."
   },
@@ -104,10 +634,274 @@
     "vocabSize": 160000,
     "dtypeBits": 16,
     "engineSupport": [
-      { "engine": "vLLM", "status": "stable" },
-      { "engine": "SGLang", "status": "stable" },
-      { "engine": "KTransformers", "status": "stable" }
+      {
+        "engine": "vLLM",
+        "status": "stable"
+      },
+      {
+        "engine": "SGLang",
+        "status": "stable"
+      },
+      {
+        "engine": "KTransformers",
+        "status": "stable"
+      }
     ],
     "summary": "Large multimodal MoE model with 1T total / 32B active parameters and 256K context."
+  },
+  {
+    "id": "moonshotai/Kimi-K3",
+    "label": "Kimi K3",
+    "family": "Kimi K3",
+    "modelType": "kimi_k3",
+    "modality": "multimodal",
+    "parameterCount": 2779999999999,
+    "activeParameterCount": 104000000000,
+    "contextLength": 1048576,
+    "hiddenSize": 7168,
+    "numLayers": 93,
+    "numHeads": 96,
+    "numKeyValueHeads": 96,
+    "headDim": 128,
+    "intermediateSize": 33792,
+    "expertIntermediateSize": 3072,
+    "numExperts": 896,
+    "numExpertsPerToken": 16,
+    "numSharedExperts": 2,
+    "vocabSize": 163840,
+    "dtypeBits": 16,
+    "remoteCodeRequired": true,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Native multimodal 2.8T MoE with Kimi Delta Attention, mixed full/linear attention, 104B active parameters, and 1M context."
+  },
+  {
+    "id": "moonshotai/Kimi-K2.6",
+    "label": "Kimi K2.6",
+    "family": "Kimi",
+    "modelType": "kimi_k25",
+    "modality": "multimodal",
+    "parameterCount": 1026879376368,
+    "activeParameterCount": 32000000000,
+    "contextLength": 262144,
+    "hiddenSize": 7168,
+    "numLayers": 61,
+    "numHeads": 64,
+    "numKeyValueHeads": 64,
+    "headDim": 128,
+    "intermediateSize": 18432,
+    "expertIntermediateSize": 2048,
+    "numExperts": 384,
+    "numExpertsPerToken": 8,
+    "numSharedExperts": 1,
+    "vocabSize": 163840,
+    "dtypeBits": 16,
+    "remoteCodeRequired": true,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Native multimodal 1T MoE with MLA, 32B active parameters, MoonViT vision encoder, and 256K context."
+  },
+  {
+    "id": "moonshotai/Kimi-K2.7-Code",
+    "label": "Kimi K2.7 Code",
+    "family": "Kimi",
+    "modelType": "kimi_k25",
+    "modality": "multimodal",
+    "parameterCount": 1026879376368,
+    "activeParameterCount": 32000000000,
+    "contextLength": 262144,
+    "hiddenSize": 7168,
+    "numLayers": 61,
+    "numHeads": 64,
+    "numKeyValueHeads": 64,
+    "headDim": 128,
+    "intermediateSize": 18432,
+    "expertIntermediateSize": 2048,
+    "numExperts": 384,
+    "numExpertsPerToken": 8,
+    "numSharedExperts": 1,
+    "vocabSize": 163840,
+    "dtypeBits": 16,
+    "remoteCodeRequired": true,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Kimi K2.7 Code coding-focused multimodal MoE built on Kimi K2.6 with 1T total and 32B active parameters."
+  },
+  {
+    "id": "google/gemma-4-E2B",
+    "label": "Gemma 4 E2B",
+    "family": "Gemma 4",
+    "modelType": "dense",
+    "modality": "multimodal",
+    "parameterCount": 5100000000,
+    "activeParameterCount": 2300000000,
+    "contextLength": 131072,
+    "hiddenSize": 1536,
+    "numLayers": 35,
+    "numHeads": 8,
+    "numKeyValueHeads": 1,
+    "headDim": 256,
+    "intermediateSize": 6144,
+    "vocabSize": 262144,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Edge-focused Gemma 4 multimodal model with 2.3B effective parameters and 128K context."
+  },
+  {
+    "id": "google/gemma-4-E4B",
+    "label": "Gemma 4 E4B",
+    "family": "Gemma 4",
+    "modelType": "dense",
+    "modality": "multimodal",
+    "parameterCount": 8000000000,
+    "activeParameterCount": 4500000000,
+    "contextLength": 131072,
+    "hiddenSize": 2560,
+    "numLayers": 42,
+    "numHeads": 8,
+    "numKeyValueHeads": 2,
+    "headDim": 256,
+    "intermediateSize": 10240,
+    "vocabSize": 262144,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Compact Gemma 4 multimodal model with 4.5B effective parameters and 128K context."
+  },
+  {
+    "id": "google/gemma-3-27b-it",
+    "label": "Gemma 3 27B IT",
+    "family": "Gemma 3",
+    "modelType": "multimodal",
+    "modality": "multimodal",
+    "parameterCount": 27000000000,
+    "contextLength": 131072,
+    "hiddenSize": 5376,
+    "numLayers": 62,
+    "numHeads": 32,
+    "numKeyValueHeads": 16,
+    "headDim": 128,
+    "intermediateSize": 21504,
+    "vocabSize": 262208,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Large Gemma 3 multimodal instruction model with 128K context; gated Hub files use explicit official architecture fallbacks."
+  },
+  {
+    "id": "Qwen/Qwen3-30B-A3B",
+    "label": "Qwen3-30B-A3B",
+    "family": "Qwen3",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 30000000000,
+    "activeParameterCount": 3000000000,
+    "contextLength": 40960,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Qwen3 MoE reasoning model with 30B total and 3B active parameters."
+  },
+  {
+    "id": "Qwen/Qwen3-235B-A22B",
+    "label": "Qwen3-235B-A22B",
+    "family": "Qwen3",
+    "modelType": "moe",
+    "modality": "text",
+    "parameterCount": 235000000000,
+    "activeParameterCount": 22000000000,
+    "contextLength": 40960,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Large Qwen3 MoE reasoning model with 235B total and 22B active parameters."
+  },
+  {
+    "id": "zai-org/GLM-5",
+    "label": "GLM-5",
+    "family": "GLM",
+    "modelType": "glm_moe_dsa",
+    "modality": "text",
+    "parameterCount": 753864139008,
+    "contextLength": 202752,
+    "hiddenSize": 6144,
+    "numLayers": 78,
+    "numHeads": 64,
+    "numKeyValueHeads": 64,
+    "headDim": 64,
+    "intermediateSize": 12288,
+    "expertIntermediateSize": 2048,
+    "numExperts": 256,
+    "numExpertsPerToken": 8,
+    "numSharedExperts": 1,
+    "vocabSize": 154880,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "GLM-5 MoE model with MLA/DSA-style indexed attention, 202K context, and 753B total parameters."
+  },
+  {
+    "id": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+    "label": "Nemotron 3.5 Lightning 30B A3B",
+    "family": "Nemotron 3.5",
+    "modelType": "nemotron_h",
+    "modality": "text",
+    "parameterCount": 31577937344,
+    "activeParameterCount": 3000000000,
+    "contextLength": 262144,
+    "hiddenSize": 2688,
+    "numLayers": 52,
+    "numHeads": 32,
+    "numKeyValueHeads": 2,
+    "headDim": 128,
+    "intermediateSize": 1856,
+    "expertIntermediateSize": 1856,
+    "numExperts": 128,
+    "numExpertsPerToken": 6,
+    "numSharedExperts": 1,
+    "vocabSize": 131072,
+    "dtypeBits": 16,
+    "engineSupport": [
+      {
+        "engine": "Transformers",
+        "status": "stable"
+      }
+    ],
+    "summary": "Nemotron 3.5 Lightning hybrid Mamba / attention / MoE model with architecture-aware state and KV caches."
   }
 ]

@@ -1,66 +1,132 @@
 [
   {
-    "provider": "AWS",
-    "name": "g5.xlarge",
-    "gpu": "NVIDIA A10G",
+    "provider": "RunPod",
+    "name": "Secure Cloud RTX 5090",
+    "gpu": "NVIDIA RTX 5090",
+    "gpu_catalog_names": ["NVIDIA GeForce RTX 5090"],
     "gpus": 1,
-    "vram_per_gpu_gb": 24,
-    "hourly_rate": 1.006
-  },
-  {
-    "provider": "AWS",
-    "name": "p3.2xlarge",
-    "gpu": "NVIDIA V100",
-    "gpus": 1,
-    "vram_per_gpu_gb": 16,
-    "hourly_rate": 3.06
-  },
-  {
-    "provider": "AWS",
-    "name": "p4d.24xlarge",
-    "gpu": "NVIDIA A100",
-    "gpus": 8,
-    "vram_per_gpu_gb": 40,
-    "hourly_rate": 24.15
-  },
-  {
-    "provider": "GCP",
-    "name": "a2-highgpu-1g",
-    "gpu": "NVIDIA A100",
-    "gpus": 1,
-    "vram_per_gpu_gb": 40,
-    "hourly_rate": 2.95
-  },
-  {
-    "provider": "GCP",
-    "name": "g2-standard-4",
-    "gpu": "NVIDIA L4",
-    "gpus": 1,
-    "vram_per_gpu_gb": 24,
-    "hourly_rate": 0.99
-  },
-  {
-    "provider": "Azure",
-    "name": "Standard_NC8as_T4_v3",
-    "gpu": "NVIDIA T4",
-    "gpus": 1,
-    "vram_per_gpu_gb": 16,
-    "hourly_rate": 0.9
-  },
-  {
-    "provider": "Azure",
-    "name": "Standard_ND40rs_v2",
-    "gpu": "NVIDIA V100",
-    "gpus": 8,
     "vram_per_gpu_gb": 32,
-    "hourly_rate": 28.36
+    "hourly_rate": 0.99,
+    "pricing_source_url": "https://www.runpod.io/gpu-models/rtx-5090",
+    "source_checked_at": "2026-08-24",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
   },
   {
-    "provider": "Lambda",
-    "name": "Lambda Cloud A100",
-    "gpu": "NVIDIA A100",
+    "provider": "RunPod",
+    "name": "Secure Cloud RTX 3090",
+    "gpu": "NVIDIA RTX 3090",
+    "gpu_catalog_names": ["NVIDIA GeForce RTX 3090"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 24,
+    "hourly_rate": 0.5,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud RTX 4090",
+    "gpu": "NVIDIA RTX 4090",
+    "gpu_catalog_names": ["NVIDIA GeForce RTX 4090"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 24,
+    "hourly_rate": 0.69,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud RTX 6000 Ada",
+    "gpu": "NVIDIA RTX 6000 Ada",
+    "gpu_catalog_names": ["NVIDIA RTX 6000 Ada"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 48,
+    "hourly_rate": 0.84,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud A100 PCIe 80GB",
+    "gpu": "NVIDIA A100 PCIe",
+    "gpu_catalog_names": ["NVIDIA A100 PCIe 80GB"],
     "gpus": 1,
     "vram_per_gpu_gb": 80,
-    "hourly_rate": 1.99
+    "hourly_rate": 1.39,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud RTX PRO 6000",
+    "gpu": "NVIDIA RTX PRO 6000",
+    "gpu_catalog_names": ["NVIDIA RTX PRO 6000 Blackwell"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 96,
+    "hourly_rate": 1.99,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud H100 PCIe 80GB",
+    "gpu": "NVIDIA H100 PCIe",
+    "gpu_catalog_names": ["NVIDIA H100 PCIe 80GB"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 80,
+    "hourly_rate": 2.89,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud H200 141GB",
+    "gpu": "NVIDIA H200",
+    "gpu_catalog_names": ["NVIDIA H200 SXM 141GB"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 141,
+    "hourly_rate": 4.39,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud B200 180GB",
+    "gpu": "NVIDIA B200",
+    "gpu_catalog_names": ["NVIDIA B200 SXM 180GB"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 180,
+    "hourly_rate": 5.89,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
+  },
+  {
+    "provider": "RunPod",
+    "name": "Secure Cloud B300 288GB",
+    "gpu": "NVIDIA B300",
+    "gpu_catalog_names": ["NVIDIA B300 SXM 288GB"],
+    "gpus": 1,
+    "vram_per_gpu_gb": 288,
+    "hourly_rate": 7.39,
+    "pricing_source_url": "https://www.runpod.io/articles/guides/ai-server-cost",
+    "source_checked_at": "2026-08-10",
+    "billing_increment": "per second",
+    "pricing_basis": "RunPod Secure Cloud on-demand compute. Excludes serverless pricing, storage, network volumes, egress, and applicable taxes; regional availability varies."
   }
 ]

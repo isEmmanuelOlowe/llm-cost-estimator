@@ -35,6 +35,10 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   /* inter var - latin */
   @font-face {
     font-family: 'Inter';

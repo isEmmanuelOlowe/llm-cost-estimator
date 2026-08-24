@@ -1,10 +1,18 @@
 import Head from 'next/head';
 import { useCallback, useMemo, useState } from 'react';
 
-import { fetchJson } from '@/lib/http';
+import {
+  inspectHuggingFaceModel,
+  type ModelInspection,
+} from '@/lib/model-metadata';
+import { fuzzySearchModels } from '@/lib/model-search';
 
 import modelPresets from '@/data/model-presets.generated.json';
 
+import DeploymentDecisionPath from '@/components/model/DeploymentDecisionPath';
+import KvCacheScalingCard from '@/components/model/KvCacheScalingCard';
+import ModelArchitectureDiagram from '@/components/model/ModelArchitectureDiagram';
+import VramUsageBar from '@/components/model/VramUsageBar';
 import Seo from '@/components/Seo';
 
 import cloudInstances from '@/estimator/cloud-instances.json';
@@ -12,38 +20,100 @@ import {
   EstimateClassification,
   estimateCloudCost,
   estimateDecoderFlops,
+  estimateHardwareFit,
   estimateLlamaStyleArchitecture,
   estimateMemory,
   estimateThroughput,
-  estimateTransformerParameters,
+  estimateTransformerParameterBreakdown,
   ExecutionMode,
   MemoryBreakdown,
   PrecisionBits,
   recommendGpus,
   resolveEffectiveParameterCount,
+  selectGpuComputeTFlops,
+  WeightFormat,
 } from '@/estimator/estimator';
+import { groupGpus } from '@/estimator/gpu-groups';
 import gpus from '@/estimator/gpus.json';
 
 type CloudInstance = (typeof cloudInstances)[number];
 type Gpu = (typeof gpus)[number];
 
-interface ModelMetadata {
-  parameterCount: number;
-  hiddenSize: number;
-  numLayers: number;
-  numHeads: number;
-  intermediateSize?: number;
-  sequenceLength?: number;
-  vocabSize?: number;
-  dtypeBits?: PrecisionBits;
-  parameterSource?: 'explicit' | 'estimated';
-}
-
 type ModelPreset = (typeof modelPresets)[number];
 
-const DEFAULT_MODEL_ID = 'meta-llama/Llama-2-7b-hf';
+const DEFAULT_MODEL_ID = 'google/gemma-4-12B';
+const gpuGroups = groupGpus(gpus);
+const featuredPresetIds = [
+  'google/gemma-4-12B',
+  'Qwen/Qwen3.8-27B',
+  'zai-org/GLM-5',
+  'moonshotai/Kimi-K3',
+  'nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16',
+];
+const featuredPresets = featuredPresetIds
+  .map((id) => modelPresets.find((preset) => preset.id === id))
+  .filter((preset): preset is ModelPreset => Boolean(preset));
 
 const bitsOptions: PrecisionBits[] = [32, 16, 8, 4];
+const weightFormatOptions: Array<{
+  value: WeightFormat;
+  label: string;
+  bits: PrecisionBits;
+}> = [
+  { value: 'bf16', label: 'BF16', bits: 16 },
+  { value: 'fp16', label: 'FP16', bits: 16 },
+  { value: 'fp8', label: 'FP8', bits: 8 },
+  { value: 'int8', label: 'INT8', bits: 8 },
+  { value: 'int4', label: 'INT4', bits: 4 },
+  { value: 'nvfp4', label: 'NVFP4', bits: 4 },
+  { value: 'mxfp4', label: 'MXFP4', bits: 4 },
+];
+const weightFormatBits = Object.fromEntries(
+  weightFormatOptions.map((option) => [option.value, option.bits]),
+) as Record<WeightFormat, PrecisionBits>;
+
+function formatFromArchitecture(
+  dtype: string | undefined,
+  bits: PrecisionBits,
+): WeightFormat {
+  const normalized = dtype?.toLowerCase() ?? '';
+  if (normalized.includes('float8') || normalized === 'fp8') return 'fp8';
+  if (normalized.includes('float16') && !normalized.includes('bfloat')) {
+    return 'fp16';
+  }
+  if (normalized.includes('int4') || normalized.includes('nf4')) return 'int4';
+  if (normalized.includes('int8')) return 'int8';
+  if (bits === 8) return 'fp8';
+  if (bits === 4) return 'int4';
+  return 'bf16';
+}
+
+const learningResources = [
+  {
+    title: 'Transformers architecture docs',
+    detail:
+      'Configuration fields, model classes, attention, cache, and implementation references.',
+    href: 'https://huggingface.co/docs/transformers/en/index',
+  },
+  {
+    title: 'Hugging Face model hub',
+    detail:
+      'Compare model cards, revisions, files, safetensors metadata, and licenses.',
+    href: 'https://huggingface.co/models',
+  },
+  {
+    title: 'Model families',
+    detail:
+      'Browse current Gemma, Qwen, DeepSeek, GLM, and other open-weight releases.',
+    href: 'https://huggingface.co/models?pipeline_tag=text-generation&sort=trending',
+  },
+  {
+    title: 'KV cache & serving',
+    detail:
+      'Understand paged attention, continuous batching, quantization, and serving tradeoffs.',
+    href: 'https://huggingface.co/docs/transformers/en/kv_cache',
+  },
+];
 
 function classificationBadgeClass(
   classification: EstimateClassification,
@@ -51,17 +121,10 @@ function classificationBadgeClass(
   return classification === 'exact' ? 'badge-success' : 'badge-warning';
 }
 
-function safeNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  return undefined;
-}
-
 function formatNumber(value: number, fractionDigits = 2): string {
   if (!Number.isFinite(value)) return 'N/A';
   if (Math.abs(value) >= 1000) {
-    return value.toLocaleString(undefined, {
+    return value.toLocaleString('en-US', {
       maximumFractionDigits: fractionDigits,
       minimumFractionDigits: 0,
     });
@@ -76,27 +139,52 @@ function formatMemory(value: number): string {
 
 export default function HomePage() {
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
-  const [parameterBillions, setParameterBillions] = useState<number>(7);
-  const [sequenceLength, setSequenceLength] = useState<number>(4096);
-  const [vocabSize, setVocabSize] = useState<number>(32000);
+  const [modelQuery, setModelQuery] = useState<string>(DEFAULT_MODEL_ID);
+  const [isModelSearchOpen, setIsModelSearchOpen] = useState(false);
+  const [parameterBillions, setParameterBillions] =
+    useState<number>(11.959730224);
+  const [sequenceLength, setSequenceLength] = useState<number>(131072);
+  const [vocabSize, setVocabSize] = useState<number>(262144);
   const [mode, setMode] = useState<ExecutionMode>('inference');
-  const [weightBits, setWeightBits] = useState<PrecisionBits>(16);
+  const [weightFormat, setWeightFormat] = useState<WeightFormat>('bf16');
+  const weightBits = weightFormatBits[weightFormat];
   const [kvBits, setKvBits] = useState<PrecisionBits>(16);
   const [overheadFactor, setOverheadFactor] = useState<number>(1.15);
   const [optimizer, setOptimizer] = useState<
     'adamw' | 'adam' | 'adafactor' | 'lamb' | 'none'
   >('adamw');
   const [efficiency, setEfficiency] = useState<number>(0.3);
+  const [memoryEfficiency, setMemoryEfficiency] = useState<number>(0.65);
   const [concurrentUsers, setConcurrentUsers] = useState<number>(1);
   const [trainingBatchSize, setTrainingBatchSize] = useState<number>(32);
   const [architectureMode, setArchitectureMode] = useState<'auto' | 'manual'>(
-    'auto',
+    'manual',
   );
-  const [manualHiddenSize, setManualHiddenSize] = useState<number>(4096);
-  const [manualNumLayers, setManualNumLayers] = useState<number>(32);
-  const [manualNumHeads, setManualNumHeads] = useState<number>(32);
+  const [manualHiddenSize, setManualHiddenSize] = useState<number>(3840);
+  const [manualNumLayers, setManualNumLayers] = useState<number>(48);
+  const [manualNumHeads, setManualNumHeads] = useState<number>(16);
+  const [manualNumKeyValueHeads, setManualNumKeyValueHeads] =
+    useState<number>(8);
+  const [manualHeadDim, setManualHeadDim] = useState<number>(256);
   const [manualIntermediateSize, setManualIntermediateSize] =
+    useState<number>(15360);
+  const [manualExpertIntermediateSize, setManualExpertIntermediateSize] =
     useState<number>(0);
+  const [
+    manualSharedExpertIntermediateSize,
+    setManualSharedExpertIntermediateSize,
+  ] = useState<number>(0);
+  const [manualNumSharedExperts, setManualNumSharedExperts] =
+    useState<number>(0);
+  const [manualIsEncoderDecoder, setManualIsEncoderDecoder] =
+    useState<boolean>(false);
+  const [manualModality, setManualModality] = useState<string>('multimodal');
+  const [manualNumExperts, setManualNumExperts] = useState<number>(0);
+  const [manualNumExpertsPerToken, setManualNumExpertsPerToken] =
+    useState<number>(0);
+  const [manualGatedMlp, setManualGatedMlp] = useState<boolean>(false);
+  const [manualTieWordEmbeddings, setManualTieWordEmbeddings] =
+    useState<boolean>(true);
   const [selectedGpuName, setSelectedGpuName] = useState<Gpu['name']>(
     gpus[0].name,
   );
@@ -107,12 +195,25 @@ export default function HomePage() {
   const [customHourlyRate, setCustomHourlyRate] = useState<number | ''>('');
   const [modelError, setModelError] = useState<string | null>(null);
   const [isLoadingModel, setIsLoadingModel] = useState<boolean>(false);
+  const [modelInspection, setModelInspection] =
+    useState<ModelInspection | null>(null);
   const [parameterSource, setParameterSource] = useState<
-    'manual' | 'catalog' | 'huggingface-config' | 'estimated-from-architecture'
-  >('manual');
+    | 'manual'
+    | 'catalog'
+    | 'huggingface-safetensors'
+    | 'huggingface-config'
+    | 'estimated-from-architecture'
+  >('catalog');
   const selectedPreset = useMemo(
-    () => modelPresets.find((preset) => preset.id === modelId),
-    [modelId],
+    () =>
+      modelQuery.trim() === modelId
+        ? modelPresets.find((preset) => preset.id === modelId)
+        : undefined,
+    [modelId, modelQuery],
+  );
+  const modelSuggestions = useMemo(
+    () => fuzzySearchModels(modelPresets, modelQuery, 8),
+    [modelQuery],
   );
 
   const parameterCount = useMemo(
@@ -135,6 +236,8 @@ export default function HomePage() {
     }
     if (autoArchitecture.numHeads) {
       setManualNumHeads(autoArchitecture.numHeads);
+      setManualNumKeyValueHeads(autoArchitecture.numHeads);
+      setManualHeadDim(autoArchitecture.hiddenSize / autoArchitecture.numHeads);
     }
     if (autoArchitecture.intermediateSize) {
       setManualIntermediateSize(autoArchitecture.intermediateSize);
@@ -196,6 +299,57 @@ export default function HomePage() {
     manualIntermediateSize,
   ]);
 
+  const effectiveNumKeyValueHeads = useMemo(() => {
+    const fallback = effectiveNumHeads || 1;
+    return architectureMode === 'auto'
+      ? fallback
+      : Math.max(1, manualNumKeyValueHeads || fallback);
+  }, [architectureMode, effectiveNumHeads, manualNumKeyValueHeads]);
+
+  const effectiveHeadDim = useMemo(() => {
+    if (architectureMode === 'manual' && manualHeadDim > 0) {
+      return manualHeadDim;
+    }
+    return effectiveNumHeads > 0 ? effectiveHiddenSize / effectiveNumHeads : 0;
+  }, [architectureMode, effectiveHiddenSize, effectiveNumHeads, manualHeadDim]);
+
+  const effectiveNumExperts = useMemo(
+    () => (architectureMode === 'manual' ? Math.max(0, manualNumExperts) : 0),
+    [architectureMode, manualNumExperts],
+  );
+
+  const effectiveNumExpertsPerToken = useMemo(
+    () =>
+      effectiveNumExperts > 0
+        ? Math.min(
+            effectiveNumExperts,
+            Math.max(1, manualNumExpertsPerToken || effectiveNumExperts),
+          )
+        : 0,
+    [effectiveNumExperts, manualNumExpertsPerToken],
+  );
+
+  const effectiveExpertIntermediateSize =
+    architectureMode === 'manual'
+      ? manualExpertIntermediateSize || effectiveIntermediateSize
+      : effectiveIntermediateSize;
+  const effectiveSharedExpertIntermediateSize =
+    architectureMode === 'manual' ? manualSharedExpertIntermediateSize || 0 : 0;
+  const effectiveNumSharedExperts =
+    architectureMode === 'manual' ? manualNumSharedExperts || 0 : 0;
+  const effectiveIsEncoderDecoder =
+    architectureMode === 'manual' && manualIsEncoderDecoder;
+  const effectiveModality =
+    architectureMode === 'manual' ? manualModality : 'text';
+
+  const effectiveGatedMlp = architectureMode === 'auto' ? true : manualGatedMlp;
+  const effectiveTieWordEmbeddings =
+    architectureMode === 'auto' ? true : manualTieWordEmbeddings;
+  const effectiveKvCacheArchitecture =
+    modelInspection?.architecture.kvCacheArchitecture ??
+    selectedPreset?.kvCacheArchitecture ??
+    undefined;
+
   const effectiveBatchSize = useMemo(() => {
     if (mode === 'inference') {
       return Math.max(1, concurrentUsers);
@@ -206,14 +360,26 @@ export default function HomePage() {
   const selectedGpu = useMemo(() => {
     return gpus.find((gpu) => gpu.name === selectedGpuName) ?? gpus[0];
   }, [selectedGpuName]);
+  const selectedComputeTFlops = useMemo(
+    () => selectGpuComputeTFlops(selectedGpu, weightBits, weightFormat),
+    [selectedGpu, weightBits, weightFormat],
+  );
+
+  const matchingCloudInstances = useMemo(
+    () =>
+      cloudInstances.filter((instance) =>
+        instance.gpu_catalog_names.includes(selectedGpu.name),
+      ),
+    [selectedGpu.name],
+  );
 
   const selectedInstance = useMemo(() => {
     return (
-      cloudInstances.find(
+      matchingCloudInstances.find(
         (instance) => instance.name === selectedInstanceName,
-      ) ?? cloudInstances[0]
+      ) ?? matchingCloudInstances[0]
     );
-  }, [selectedInstanceName]);
+  }, [matchingCloudInstances, selectedInstanceName]);
 
   const flops = useMemo(() => {
     if (
@@ -230,8 +396,23 @@ export default function HomePage() {
       hiddenSize: effectiveHiddenSize,
       sequenceLength,
       vocabSize,
+      intermediateSize: effectiveIntermediateSize,
+      numAttentionHeads: effectiveNumHeads,
+      numKeyValueHeads: effectiveNumKeyValueHeads,
+      headDim: effectiveHeadDim,
+      gatedMlp: effectiveGatedMlp,
     });
-  }, [effectiveHiddenSize, effectiveNumLayers, sequenceLength, vocabSize]);
+  }, [
+    effectiveHiddenSize,
+    effectiveNumLayers,
+    effectiveIntermediateSize,
+    effectiveNumHeads,
+    effectiveNumKeyValueHeads,
+    effectiveHeadDim,
+    effectiveGatedMlp,
+    sequenceLength,
+    vocabSize,
+  ]);
 
   const memoryBreakdown: MemoryBreakdown = useMemo(() => {
     if (!parameterCount || !effectiveHiddenSize || !effectiveNumLayers) {
@@ -239,6 +420,12 @@ export default function HomePage() {
         weightsGB: 0,
         activationsGB: 0,
         kvCacheGB: 0,
+        stateCacheGB: 0,
+        kvCacheBytesPerToken: 0,
+        kvCacheTokens: 0,
+        kvCacheMode: 'standard',
+        kvCacheDescription: 'No KV cache estimate is available.',
+        kvAttentionLayers: 0,
         optimizerGB: 0,
         baseTotalGB: 0,
         overheadGB: 0,
@@ -252,11 +439,15 @@ export default function HomePage() {
       mode,
       hiddenSize: effectiveHiddenSize,
       numLayers: effectiveNumLayers,
+      numAttentionHeads: effectiveNumHeads,
+      numKeyValueHeads: effectiveNumKeyValueHeads,
+      headDim: effectiveHeadDim,
       sequenceLength,
       batchSize: effectiveBatchSize,
       kvCachePrecisionBits: kvBits,
       optimizer: mode === 'training' ? optimizer : 'none',
       overheadFactor,
+      kvCacheArchitecture: effectiveKvCacheArchitecture,
     });
   }, [
     parameterCount,
@@ -264,16 +455,26 @@ export default function HomePage() {
     mode,
     effectiveHiddenSize,
     effectiveNumLayers,
+    effectiveNumHeads,
+    effectiveNumKeyValueHeads,
+    effectiveHeadDim,
     sequenceLength,
     effectiveBatchSize,
     kvBits,
     optimizer,
     overheadFactor,
+    effectiveKvCacheArchitecture,
   ]);
 
   const throughput = useMemo(() => {
     if (!parameterCount) {
-      return { tokensPerSecond: 0, millisecondsPerToken: 0 };
+      return {
+        tokensPerSecond: 0,
+        millisecondsPerToken: 0,
+        computeBoundTokensPerSecond: 0,
+        memoryBoundTokensPerSecond: 0,
+        bottleneck: 'unavailable' as const,
+      };
     }
 
     return estimateThroughput({
@@ -281,28 +482,81 @@ export default function HomePage() {
         parameterCount,
         parameterSource === 'catalog'
           ? selectedPreset?.activeParameterCount
-          : null,
+          : parameterSource === 'huggingface-safetensors' ||
+              parameterSource === 'huggingface-config'
+            ? modelInspection?.activeParameterCount
+            : null,
       ),
       gpuTFlops: selectedGpu?.fp32_tflops ?? 0,
+      precisionTFlops: selectedComputeTFlops,
       efficiency,
+      memoryBandwidthGBs: selectedGpu?.memory_bandwidth_gb_s,
+      weightPrecisionBits: weightBits,
+      computeFormat: weightFormat,
+      batchSize: effectiveBatchSize,
+      memoryEfficiency,
     });
   }, [
     parameterCount,
     parameterSource,
+    modelInspection,
     selectedGpu,
     efficiency,
+    memoryEfficiency,
+    effectiveBatchSize,
     selectedPreset,
+    weightBits,
+    weightFormat,
+    selectedComputeTFlops,
+  ]);
+
+  const parameterBreakdown = useMemo(() => {
+    if (
+      effectiveNumExperts > 1 ||
+      !effectiveHiddenSize ||
+      !effectiveNumLayers ||
+      !effectiveNumHeads ||
+      !vocabSize
+    ) {
+      return undefined;
+    }
+
+    return estimateTransformerParameterBreakdown({
+      vocabSize,
+      hiddenSize: effectiveHiddenSize,
+      numLayers: effectiveNumLayers,
+      numAttentionHeads: effectiveNumHeads,
+      numKeyValueHeads: effectiveNumKeyValueHeads,
+      headDim: effectiveHeadDim,
+      intermediateSize: effectiveIntermediateSize,
+      numExperts: effectiveNumExperts || undefined,
+      numExpertsPerToken: effectiveNumExpertsPerToken || undefined,
+      gatedMlp: effectiveGatedMlp,
+      tieWordEmbeddings: effectiveTieWordEmbeddings,
+    });
+  }, [
+    effectiveHiddenSize,
+    effectiveNumLayers,
+    effectiveNumHeads,
+    effectiveNumKeyValueHeads,
+    effectiveHeadDim,
+    effectiveIntermediateSize,
+    effectiveNumExperts,
+    effectiveNumExpertsPerToken,
+    effectiveGatedMlp,
+    effectiveTieWordEmbeddings,
+    vocabSize,
   ]);
 
   const hourlyRate = useMemo(() => {
     if (typeof customHourlyRate === 'number' && customHourlyRate > 0) {
       return customHourlyRate;
     }
-    return selectedInstance.hourly_rate;
-  }, [customHourlyRate, selectedInstance.hourly_rate]);
+    return selectedInstance?.hourly_rate ?? 0;
+  }, [customHourlyRate, selectedInstance?.hourly_rate]);
 
   const costEstimate = useMemo(() => {
-    if (!runtimeHours || runtimeHours <= 0) {
+    if (!runtimeHours || runtimeHours <= 0 || hourlyRate <= 0) {
       return { totalCost: 0, hourlyRate, durationHours: runtimeHours };
     }
 
@@ -317,62 +571,133 @@ export default function HomePage() {
     return recommendGpus(memoryBreakdown.totalGB, 5);
   }, [memoryBreakdown.totalGB]);
 
-  const applyModelMetadata = useCallback((metadata: ModelMetadata) => {
-    if (metadata.parameterCount && metadata.parameterCount > 0) {
-      setParameterBillions(metadata.parameterCount / 10 ** 9);
-    }
-    if (metadata.parameterSource === 'estimated') {
-      setParameterSource('estimated-from-architecture');
-    } else if (metadata.parameterSource === 'explicit') {
-      setParameterSource('huggingface-config');
-    }
+  const selectedHardwareFit = useMemo(
+    () => estimateHardwareFit(memoryBreakdown.totalGB, selectedGpu),
+    [memoryBreakdown.totalGB, selectedGpu],
+  );
 
-    const hasArchitecture = Boolean(
-      (metadata.hiddenSize && metadata.hiddenSize > 0) ||
-      (metadata.numLayers && metadata.numLayers > 0) ||
-      (metadata.numHeads && metadata.numHeads > 0) ||
-      (metadata.intermediateSize && metadata.intermediateSize > 0),
-    );
+  const applyModelMetadata = useCallback(
+    (metadata: {
+      parameterCount?: number;
+      parameterSource?: ModelInspection['parameterSource'];
+      architecture: ModelInspection['architecture'];
+    }) => {
+      if (metadata.parameterCount && metadata.parameterCount > 0) {
+        setParameterBillions(metadata.parameterCount / 10 ** 9);
+      }
+      if (metadata.parameterSource === 'estimated-from-architecture') {
+        setParameterSource('estimated-from-architecture');
+      } else if (
+        metadata.parameterSource === 'huggingface-safetensors' ||
+        metadata.parameterSource === 'huggingface-config'
+      ) {
+        setParameterSource(metadata.parameterSource);
+      }
 
-    if (hasArchitecture) {
-      setArchitectureMode('manual');
-    }
+      const architecture = metadata.architecture;
+      const hasArchitecture = Boolean(
+        (architecture.hiddenSize && architecture.hiddenSize > 0) ||
+        (architecture.numLayers && architecture.numLayers > 0) ||
+        (architecture.numAttentionHeads &&
+          architecture.numAttentionHeads > 0) ||
+        (architecture.intermediateSize && architecture.intermediateSize > 0),
+      );
 
-    if (metadata.hiddenSize && metadata.hiddenSize > 0) {
-      setManualHiddenSize(metadata.hiddenSize);
-    }
-    if (metadata.numLayers && metadata.numLayers > 0) {
-      setManualNumLayers(metadata.numLayers);
-    }
-    if (metadata.numHeads && metadata.numHeads > 0) {
-      setManualNumHeads(metadata.numHeads);
-    }
-    if (metadata.intermediateSize && metadata.intermediateSize > 0) {
-      setManualIntermediateSize(metadata.intermediateSize);
-    }
-    if (metadata.sequenceLength && metadata.sequenceLength > 0) {
-      setSequenceLength(metadata.sequenceLength);
-    }
-    if (metadata.vocabSize && metadata.vocabSize > 0) {
-      setVocabSize(metadata.vocabSize);
-    }
-    if (metadata.dtypeBits) setWeightBits(metadata.dtypeBits);
-  }, []);
+      if (hasArchitecture) setArchitectureMode('manual');
+      const hiddenSize = architecture.hiddenSize ?? 0;
+      const attentionHeads =
+        architecture.numAttentionHeads ??
+        (hiddenSize > 0 ? Math.max(1, Math.round(hiddenSize / 128)) : 0);
+      setManualHiddenSize(hiddenSize);
+      setManualNumLayers(architecture.numLayers ?? 0);
+      setManualNumHeads(attentionHeads);
+      setManualNumKeyValueHeads(
+        architecture.numKeyValueHeads ?? attentionHeads,
+      );
+      setManualHeadDim(architecture.headDim ?? 0);
+      setManualIntermediateSize(architecture.intermediateSize ?? 0);
+      setManualExpertIntermediateSize(architecture.expertIntermediateSize ?? 0);
+      setManualSharedExpertIntermediateSize(
+        architecture.sharedExpertIntermediateSize ?? 0,
+      );
+      setManualNumSharedExperts(architecture.numSharedExperts ?? 0);
+      setManualIsEncoderDecoder(architecture.isEncoderDecoder ?? false);
+      setManualModality(
+        architecture.modality ??
+          (architecture.modelType?.includes('vision') ||
+          architecture.modelType?.includes('audio')
+            ? 'multimodal'
+            : 'text'),
+      );
+      setManualNumExperts(architecture.numExperts ?? 0);
+      setManualNumExpertsPerToken(architecture.numExpertsPerToken ?? 0);
+      setManualGatedMlp(architecture.gatedMlp ?? true);
+      setManualTieWordEmbeddings(architecture.tieWordEmbeddings ?? true);
+      setSequenceLength(architecture.contextLength ?? 0);
+      setVocabSize(architecture.vocabSize ?? 0);
+      if (architecture.dtypeBits) {
+        setWeightFormat(
+          formatFromArchitecture(architecture.dtype, architecture.dtypeBits),
+        );
+      }
+    },
+    [],
+  );
+
+  const applyModelInspection = useCallback(
+    (inspection: ModelInspection) => {
+      setModelInspection(inspection);
+      applyModelMetadata({
+        parameterCount: inspection.parameterCount,
+        parameterSource: inspection.parameterSource,
+        architecture: {
+          ...inspection.architecture,
+          modality:
+            inspection.pipelineTag?.includes('image') ||
+            inspection.pipelineTag?.includes('audio') ||
+            inspection.pipelineTag?.includes('video')
+              ? 'multimodal'
+              : inspection.architecture.modality,
+        },
+      });
+    },
+    [applyModelMetadata],
+  );
 
   const applyModelPreset = useCallback(
     (preset: ModelPreset) => {
       setModelId(preset.id);
+      setModelQuery(preset.id);
+      setModelInspection(null);
       setModelError(null);
       setParameterSource('catalog');
       applyModelMetadata({
         parameterCount: preset.parameterCount,
-        hiddenSize: preset.hiddenSize ?? 0,
-        numLayers: preset.numLayers ?? 0,
-        numHeads: preset.numHeads ?? 0,
-        intermediateSize: preset.intermediateSize ?? undefined,
-        sequenceLength: preset.contextLength,
-        vocabSize: preset.vocabSize ?? undefined,
-        dtypeBits: (preset.dtypeBits as PrecisionBits | null) ?? undefined,
+        architecture: {
+          modelType: preset.modelTypeTag,
+          architectures: preset.architectures,
+          modality: preset.modality,
+          hiddenSize: preset.hiddenSize ?? undefined,
+          numLayers: preset.numLayers ?? undefined,
+          numAttentionHeads: preset.numHeads ?? undefined,
+          numKeyValueHeads: preset.numKeyValueHeads ?? undefined,
+          headDim: preset.headDim ?? undefined,
+          intermediateSize: preset.intermediateSize ?? undefined,
+          expertIntermediateSize: preset.expertIntermediateSize ?? undefined,
+          sharedExpertIntermediateSize:
+            preset.sharedExpertIntermediateSize ?? undefined,
+          numSharedExperts: preset.numSharedExperts ?? undefined,
+          isEncoderDecoder: preset.isEncoderDecoder ?? undefined,
+          vocabSize: preset.vocabSize ?? undefined,
+          contextLength: preset.contextLength,
+          numExperts: preset.numExperts ?? undefined,
+          numExpertsPerToken: preset.numExpertsPerToken ?? undefined,
+          modalityArchitecture: preset.modalityArchitecture ?? undefined,
+          kvCacheArchitecture: preset.kvCacheArchitecture ?? undefined,
+          gatedMlp: preset.gatedMlp ?? undefined,
+          tieWordEmbeddings: preset.tieWordEmbeddings ?? undefined,
+          dtypeBits: (preset.dtypeBits as PrecisionBits | null) ?? undefined,
+        },
       });
     },
     [applyModelMetadata],
@@ -380,27 +705,18 @@ export default function HomePage() {
 
   const fetchModelConfig = useCallback(
     async (id: string) => {
-      const trimmedId = id.trim();
-      if (!trimmedId) {
-        setModelError('Please enter a Hugging Face model ID.');
-        return;
-      }
-
       setIsLoadingModel(true);
       setModelError(null);
       try {
-        const metadata = parseModelConfig(
-          await fetchJson<Record<string, unknown>>(
-            `https://huggingface.co/${trimmedId}/raw/main/config.json`,
-            {
-              timeoutMs: 10000,
-            },
-          ),
-        );
-        applyModelMetadata(metadata);
+        const inspection = await inspectHuggingFaceModel(id);
+        setModelId(inspection.id);
+        setModelQuery(inspection.id);
+        applyModelInspection(inspection);
       } catch (error: unknown) {
         setModelError(
-          'Unable to retrieve model configuration from Hugging Face.',
+          error instanceof Error
+            ? error.message
+            : 'Unable to retrieve model configuration from Hugging Face.',
         );
         if (process.env.NODE_ENV !== 'production') {
           // eslint-disable-next-line no-console
@@ -410,13 +726,8 @@ export default function HomePage() {
         setIsLoadingModel(false);
       }
     },
-    [applyModelMetadata],
+    [applyModelInspection],
   );
-
-  const memoryHeadroom = useMemo(() => {
-    if (!selectedGpu) return null;
-    return selectedGpu.memory_gb - memoryBreakdown.totalGB;
-  }, [selectedGpu, memoryBreakdown.totalGB]);
 
   return (
     <main
@@ -425,36 +736,172 @@ export default function HomePage() {
     >
       <Seo />
       <Head>
-        <title>LLM Cost &amp; Resource Estimator</title>
+        <title>LLM Explorer</title>
       </Head>
-      <div className='mx-auto max-w-6xl px-4 py-10'>
-        <header className='space-y-4 text-center'>
-          <h1 className='text-3xl font-bold text-primary'>
-            LLM Resource Usage &amp; Cost Calculator
-          </h1>
-          <p className='text-base-content/80'>
-            Analyse memory requirements, throughput and cloud spend for
-            open-source language models in seconds.
+      <div className='sticky top-0 z-40 border-b border-base-300/80 bg-base-200/95 backdrop-blur'>
+        <div className='mx-auto flex max-w-[1800px] items-center gap-4 px-5 py-3 sm:px-8 xl:px-12'>
+          <a
+            href='#top'
+            className='flex shrink-0 items-center gap-2 font-semibold tracking-tight text-base-content'
+          >
+            <span className='grid size-8 place-items-center rounded-lg bg-primary font-mono text-xs font-bold text-primary-content shadow-lg shadow-primary/20'>
+              LE
+            </span>
+            <span>LLM Explorer</span>
+          </a>
+          <nav
+            className='min-w-0 flex-1 overflow-x-auto'
+            aria-label='Explorer sections'
+          >
+            <ul className='flex min-w-max items-center justify-end gap-1 text-xs font-medium text-base-content/70'>
+              {[
+                ['#inspect', 'Inspect'],
+                ['#understand', 'Understand'],
+                ['#estimate', 'Estimate'],
+                ['#hardware', 'Hardware'],
+                ['#performance', 'Performance'],
+                ['#cost', 'Cost'],
+              ].map(([href, label]) => (
+                <li key={href}>
+                  <a
+                    href={href}
+                    className='inline-flex rounded-lg px-3 py-2 transition hover:bg-base-100 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+              <li>
+                <details className='relative'>
+                  <summary className='cursor-pointer list-none rounded-lg px-3 py-2 transition hover:bg-base-100 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'>
+                    Learn
+                  </summary>
+                  <div className='absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-base-300 bg-base-100 p-2 text-left shadow-2xl'>
+                    <div className='px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary'>
+                      Resources
+                    </div>
+                    {learningResources.map((resource) => (
+                      <a
+                        key={resource.title}
+                        href={resource.href}
+                        target='_blank'
+                        rel='noreferrer'
+                        className='block rounded-lg px-3 py-2 transition hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                      >
+                        <span className='block text-xs font-semibold text-base-content'>
+                          {resource.title} ↗
+                        </span>
+                        <span className='mt-1 block text-[11px] leading-relaxed text-base-content/60'>
+                          {resource.detail}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </details>
+              </li>
+            </ul>
+          </nav>
+          <span className='hidden shrink-0 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[11px] text-success lg:inline'>
+            Public model explorer
+          </span>
+        </div>
+      </div>
+      <div
+        id='top'
+        className='mx-auto w-full max-w-[1800px] px-5 py-4 sm:px-8 xl:px-12'
+      >
+        <header className='flex flex-col gap-2 py-1 text-left md:flex-row md:items-center md:justify-between md:gap-8'>
+          <div className='flex min-w-0 flex-wrap items-center gap-3'>
+            <h1 className='text-3xl font-bold tracking-tight text-base-content'>
+              LLM <span className='text-primary'>Explorer</span>
+            </h1>
+            <div className='flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary'>
+              <span className='size-1.5 rounded-full bg-primary' />
+              Inspect → Understand → Deploy
+            </div>
+          </div>
+          <p className='max-w-2xl text-xs leading-relaxed text-base-content/70 md:text-right'>
+            From Hugging Face evidence to architecture, memory, hardware fit,
+            and deployment cost.
           </p>
         </header>
 
-        <section className='mt-10 rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
+        <section
+          id='inspect'
+          className='mt-4 scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
+        >
           <div className='flex flex-col gap-4 md:flex-row md:items-end'>
-            <label className='flex-1'>
-              <span className='label-text font-semibold'>
-                Hugging Face model ID
-              </span>
-              <input
-                className='input input-bordered mt-2 w-full'
-                placeholder='meta-llama/Llama-2-7b-hf'
-                value={modelId}
-                onChange={(event) => setModelId(event.target.value)}
-                aria-label='Hugging Face model identifier'
-              />
-            </label>
+            <div className='relative flex-1'>
+              <label className='block'>
+                <span className='label-text font-semibold'>
+                  Hugging Face model ID or search
+                </span>
+                <input
+                  className='input input-bordered mt-2 w-full'
+                  placeholder='Search Kimi, DeepSeek, Gemma… or enter org/model'
+                  value={modelQuery}
+                  onFocus={() => setIsModelSearchOpen(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      setIsModelSearchOpen(false);
+                    } else if (event.key === 'Enter') {
+                      setIsModelSearchOpen(false);
+                      fetchModelConfig(modelQuery);
+                    }
+                  }}
+                  onChange={(event) => {
+                    setModelQuery(event.target.value);
+                    setModelError(null);
+                    setModelInspection(null);
+                    setIsModelSearchOpen(true);
+                  }}
+                  aria-label='Hugging Face model ID or search'
+                  aria-expanded={isModelSearchOpen}
+                  aria-controls='model-search-results'
+                  role='combobox'
+                />
+              </label>
+              {isModelSearchOpen && modelSuggestions.length > 0 && (
+                <div
+                  id='model-search-results'
+                  className='absolute left-0 right-0 z-30 mt-2 max-h-80 overflow-auto rounded-xl border border-base-300 bg-base-100 p-1 shadow-2xl'
+                  role='listbox'
+                >
+                  {modelSuggestions.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type='button'
+                      className='flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-primary'
+                      onClick={() => {
+                        setIsModelSearchOpen(false);
+                        applyModelPreset(preset);
+                      }}
+                      role='option'
+                      aria-selected={selectedPreset?.id === preset.id}
+                    >
+                      <span className='min-w-0'>
+                        <span className='block truncate text-sm font-semibold'>
+                          {preset.label}
+                        </span>
+                        <span className='block truncate text-[11px] text-base-content/60'>
+                          {preset.id}
+                        </span>
+                      </span>
+                      <span className='badge badge-ghost badge-sm shrink-0'>
+                        {preset.family}
+                      </span>
+                    </button>
+                  ))}
+                  <div className='border-t border-base-300 px-3 py-2 text-[11px] text-base-content/60'>
+                    Choose a result to load its preset, or press Enter / Fetch
+                    configuration to inspect any public Hugging Face ID.
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               className='btn btn-primary w-full md:w-auto'
-              onClick={() => fetchModelConfig(modelId)}
+              onClick={() => fetchModelConfig(modelQuery)}
               disabled={isLoadingModel}
             >
               {isLoadingModel ? 'Loading…' : 'Fetch configuration'}
@@ -477,134 +924,176 @@ export default function HomePage() {
                 </p>
               </div>
               <span className='badge badge-outline'>
-                {modelPresets.length} presets
+                {modelPresets.length} presets · {featuredPresets.length}{' '}
+                featured
               </span>
             </div>
-            <div className='mt-3 flex flex-wrap gap-2'>
-              {modelPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={`btn btn-sm ${
-                    selectedPreset?.id === preset.id
-                      ? 'btn-primary'
-                      : 'btn-outline'
-                  }`}
-                  type='button'
-                  onClick={() => applyModelPreset(preset)}
-                >
-                  {preset.label}
-                </button>
-              ))}
+            <div className='mt-4 flex flex-col gap-3 lg:flex-row lg:items-center'>
+              <div className='flex min-w-0 flex-wrap items-center gap-2'>
+                <span className='text-xs font-semibold uppercase tracking-[0.12em] text-primary'>
+                  Featured
+                </span>
+                {featuredPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    className={`btn btn-xs ${
+                      selectedPreset?.id === preset.id
+                        ? 'btn-primary'
+                        : 'btn-outline'
+                    }`}
+                    type='button'
+                    onClick={() => applyModelPreset(preset)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           {selectedPreset && (
-            <div className='mt-6 rounded-xl border border-base-300 bg-base-200 p-4'>
-              <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
-                <div>
-                  <h3 className='text-lg font-semibold'>
+            <div className='mt-5 flex flex-col gap-3 rounded-xl border border-base-300 bg-base-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between'>
+              <div className='min-w-0'>
+                <div className='flex flex-wrap items-center gap-2'>
+                  <h2 className='truncate text-lg font-semibold'>
                     {selectedPreset.label}
-                  </h3>
-                  <p className='mt-1 text-sm text-base-content/75'>
-                    {selectedPreset.summary}
-                  </p>
-                </div>
-                <div className='flex flex-wrap gap-2'>
+                  </h2>
                   <span className='badge badge-primary badge-outline'>
                     {selectedPreset.family}
                   </span>
-                  <span className='badge badge-outline'>
-                    {selectedPreset.modelType}
-                  </span>
-                  <span className='badge badge-outline'>
-                    {selectedPreset.modality}
+                  <span
+                    className={`badge badge-outline ${
+                      selectedPreset.accessStatus === 'gated'
+                        ? 'badge-warning'
+                        : 'badge-success'
+                    }`}
+                  >
+                    {selectedPreset.accessStatus}
                   </span>
                 </div>
+                <p className='mt-1 line-clamp-2 text-xs text-base-content/70'>
+                  {selectedPreset.summary}
+                </p>
               </div>
-
-              <dl className='mt-4 grid gap-3 text-sm md:grid-cols-4'>
+              <dl className='grid shrink-0 grid-cols-3 gap-5 text-xs'>
                 <div>
-                  <dt className='text-base-content/70'>Total params</dt>
-                  <dd className='font-semibold'>
-                    {formatNumber(selectedPreset.parameterCount / 1e9, 1)} B
+                  <dt className='text-base-content/55'>Parameters</dt>
+                  <dd className='mt-1 font-bold'>
+                    {formatNumber(parameterBillions, 2)}B
                   </dd>
                 </div>
                 <div>
-                  <dt className='text-base-content/70'>Active params</dt>
-                  <dd className='font-semibold'>
-                    {selectedPreset.activeParameterCount
-                      ? `${formatNumber(
-                          selectedPreset.activeParameterCount / 1e9,
-                          1,
-                        )} B`
-                      : 'Dense'}
+                  <dt className='text-base-content/55'>Layers</dt>
+                  <dd className='mt-1 font-bold'>
+                    {effectiveNumLayers || '–'}
                   </dd>
                 </div>
                 <div>
-                  <dt className='text-base-content/70'>Native context</dt>
-                  <dd className='font-semibold'>
-                    {formatNumber(selectedPreset.contextLength, 0)} tokens
-                  </dd>
-                </div>
-                <div>
-                  <dt className='text-base-content/70'>Recommended engines</dt>
-                  <dd className='font-semibold'>
-                    {selectedPreset.engineSupport
-                      .map((entry) => entry.engine)
-                      .join(', ')}
+                  <dt className='text-base-content/55'>Context</dt>
+                  <dd className='mt-1 font-bold'>
+                    {formatNumber(sequenceLength, 0)}
                   </dd>
                 </div>
               </dl>
-
-              <div className='mt-4 flex flex-wrap gap-2'>
-                {selectedPreset.engineSupport.map((entry) => (
-                  <span
-                    key={`${selectedPreset.id}-${entry.engine}`}
-                    className='badge badge-outline'
-                  >
-                    {entry.engine}: {entry.status}
-                  </span>
-                ))}
-              </div>
             </div>
           )}
-
-          <dl className='mt-6 grid gap-4 text-sm md:grid-cols-3'>
-            <div>
-              <dt className='font-semibold text-base-content/70'>Parameters</dt>
-              <dd className='text-lg font-bold'>
-                {formatNumber(parameterBillions, 3)} B
-              </dd>
-              <span
-                className={`badge badge-sm mt-2 ${classificationBadgeClass(
-                  parameterSource === 'estimated-from-architecture'
-                    ? 'heuristic'
-                    : 'exact',
-                )}`}
-              >
-                {parameterSource === 'estimated-from-architecture'
-                  ? 'Heuristic estimate'
-                  : 'Exact / sourced value'}
-              </span>
-            </div>
-            <div>
-              <dt className='font-semibold text-base-content/70'>
-                Hidden size
-              </dt>
-              <dd className='text-lg font-bold'>
-                {effectiveHiddenSize || '–'}
-              </dd>
-            </div>
-            <div>
-              <dt className='font-semibold text-base-content/70'>Layers</dt>
-              <dd className='text-lg font-bold'>{effectiveNumLayers || '–'}</dd>
-            </div>
-          </dl>
         </section>
 
-        <section className='mt-10 grid gap-8 lg:grid-cols-[1.15fr_0.85fr]'>
+        <div className='mt-6'>
+          <DeploymentDecisionPath
+            modelLabel={modelInspection?.id ?? selectedPreset?.label ?? modelId}
+            parameterBillions={parameterBillions}
+            layers={effectiveNumLayers}
+            contextLength={sequenceLength}
+            weightFormat={weightFormat.toUpperCase()}
+            totalMemoryGB={memoryBreakdown.totalGB}
+            memorySegments={[
+              {
+                label: 'Weights',
+                valueGB: memoryBreakdown.weightsGB,
+                color: 'bg-sky-500',
+              },
+              {
+                label: 'KV',
+                valueGB: memoryBreakdown.kvCacheGB,
+                color: 'bg-violet-500',
+              },
+              {
+                label: 'Activations',
+                valueGB: memoryBreakdown.activationsGB,
+                color: 'bg-amber-500',
+              },
+              {
+                label: 'Overhead',
+                valueGB: memoryBreakdown.overheadGB,
+                color: 'bg-slate-400',
+              },
+            ]}
+            gpuName={selectedGpu.name}
+            gpuCapacityGB={selectedGpu.memory_gb}
+            fits={selectedHardwareFit.fits}
+            headroomGB={selectedHardwareFit.aggregateHeadroomGB}
+            tokensPerSecond={throughput.tokensPerSecond}
+            projectedCost={hourlyRate > 0 ? costEstimate.totalCost : undefined}
+            cloudCostLabel={
+              typeof customHourlyRate === 'number' && customHourlyRate > 0
+                ? `Custom rate · ${formatNumber(runtimeHours, 2)}h`
+                : selectedInstance
+                  ? `${selectedInstance.provider} · ${formatNumber(runtimeHours, 2)}h`
+                  : undefined
+            }
+          />
+        </div>
+
+        <section id='understand' className='mt-8 scroll-mt-24'>
+          <ModelArchitectureDiagram
+            modelType={
+              modelInspection?.modelType ??
+              selectedPreset?.modelTypeTag ??
+              undefined
+            }
+            architectures={
+              modelInspection?.architectures ?? selectedPreset?.architectures
+            }
+            sourceDirectoryUrl={
+              modelInspection?.transformers?.directoryUrl ??
+              selectedPreset?.sourceUrls.transformers ??
+              undefined
+            }
+            sourceFiles={modelInspection?.transformers?.files}
+            sourcePreview={modelInspection?.transformers?.preview}
+            onLoadImplementation={() => fetchModelConfig(modelQuery || modelId)}
+            isLoadingImplementation={isLoadingModel}
+            hiddenSize={effectiveHiddenSize}
+            numLayers={effectiveNumLayers}
+            numAttentionHeads={effectiveNumHeads}
+            numKeyValueHeads={effectiveNumKeyValueHeads}
+            headDim={effectiveHeadDim}
+            intermediateSize={effectiveIntermediateSize}
+            expertIntermediateSize={effectiveExpertIntermediateSize}
+            sharedExpertIntermediateSize={effectiveSharedExpertIntermediateSize}
+            numSharedExperts={effectiveNumSharedExperts || undefined}
+            isEncoderDecoder={effectiveIsEncoderDecoder}
+            modality={effectiveModality}
+            modalityArchitecture={
+              modelInspection?.architecture.modalityArchitecture ??
+              selectedPreset?.modalityArchitecture ??
+              undefined
+            }
+            vocabSize={vocabSize}
+            numExperts={effectiveNumExperts || undefined}
+            numExpertsPerToken={effectiveNumExpertsPerToken || undefined}
+            parameterCount={parameterCount}
+            parameterBreakdown={parameterBreakdown}
+          />
+        </section>
+
+        <section className='mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]'>
           <div className='space-y-6'>
-            <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
+            <div
+              id='estimate'
+              className='scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
+            >
               <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
                 <div>
                   <h2 className='text-xl font-semibold'>Quick estimator</h2>
@@ -657,11 +1146,13 @@ export default function HomePage() {
                   <input
                     className='input input-bordered mt-1'
                     type='number'
+                    lang='en-US'
                     min='0'
                     step='0.1'
                     value={parameterBillions}
                     onChange={(event) => {
                       setParameterSource('manual');
+                      setModelInspection(null);
                       setParameterBillions(Number(event.target.value) || 0);
                     }}
                   />
@@ -671,6 +1162,7 @@ export default function HomePage() {
                   <input
                     className='input input-bordered mt-1'
                     type='number'
+                    lang='en-US'
                     min='1'
                     value={sequenceLength}
                     onChange={(event) =>
@@ -679,17 +1171,17 @@ export default function HomePage() {
                   />
                 </label>
                 <label className='flex flex-col text-sm'>
-                  Weight precision
+                  Weight format
                   <select
                     className='select select-bordered mt-1'
-                    value={weightBits}
+                    value={weightFormat}
                     onChange={(event) =>
-                      setWeightBits(Number(event.target.value) as PrecisionBits)
+                      setWeightFormat(event.target.value as WeightFormat)
                     }
                   >
-                    {bitsOptions.map((bits) => (
-                      <option key={bits} value={bits}>
-                        {bits}-bit
+                    {weightFormatOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -715,6 +1207,7 @@ export default function HomePage() {
                   <input
                     className='input input-bordered mt-1'
                     type='number'
+                    lang='en-US'
                     min='1'
                     step='0.05'
                     value={overheadFactor}
@@ -775,6 +1268,7 @@ export default function HomePage() {
                   <input
                     className='input input-bordered mt-1'
                     type='number'
+                    lang='en-US'
                     min='1'
                     value={trainingBatchSize}
                     onChange={(event) =>
@@ -785,7 +1279,10 @@ export default function HomePage() {
               )}
             </div>
 
-            <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
+            <div
+              id='architecture-controls'
+              className='scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
+            >
               <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
                 <div>
                   <h2 className='text-xl font-semibold'>
@@ -857,6 +1354,22 @@ export default function HomePage() {
                 </div>
                 <div>
                   <dt className='font-semibold text-base-content/70'>
+                    KV heads
+                  </dt>
+                  <dd className='text-lg font-semibold'>
+                    {effectiveNumKeyValueHeads || '–'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-base-content/70'>
+                    Head dimension
+                  </dt>
+                  <dd className='text-lg font-semibold'>
+                    {effectiveHeadDim ? formatNumber(effectiveHeadDim, 0) : '–'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-base-content/70'>
                     Feed-forward size
                   </dt>
                   <dd className='text-lg font-semibold'>
@@ -866,75 +1379,170 @@ export default function HomePage() {
               </dl>
 
               {architectureMode === 'manual' && (
-                <div className='mt-6 space-y-4'>
-                  <div className='grid gap-4 md:grid-cols-2'>
+                <details className='mt-5 rounded-xl border border-base-300 bg-base-200/60 p-4'>
+                  <summary className='cursor-pointer text-sm font-semibold'>
+                    Edit exact block dimensions
+                  </summary>
+                  <div className='mt-4 space-y-4'>
+                    <div className='grid gap-4 md:grid-cols-2'>
+                      <label className='flex flex-col text-sm'>
+                        Hidden size
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='0'
+                          value={manualHiddenSize}
+                          onChange={(event) =>
+                            setManualHiddenSize(Number(event.target.value) || 0)
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Layers
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='0'
+                          value={manualNumLayers}
+                          onChange={(event) =>
+                            setManualNumLayers(Number(event.target.value) || 0)
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Attention heads
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='0'
+                          value={manualNumHeads}
+                          onChange={(event) =>
+                            setManualNumHeads(Number(event.target.value) || 0)
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Key/value heads (GQA/MQA)
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='1'
+                          value={manualNumKeyValueHeads}
+                          onChange={(event) =>
+                            setManualNumKeyValueHeads(
+                              Number(event.target.value) || 1,
+                            )
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Head dimension (optional)
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='1'
+                          placeholder={
+                            effectiveNumHeads
+                              ? String(effectiveHiddenSize / effectiveNumHeads)
+                              : ''
+                          }
+                          value={manualHeadDim || ''}
+                          onChange={(event) =>
+                            setManualHeadDim(Number(event.target.value) || 0)
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Feed-forward size
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='0'
+                          placeholder={
+                            manualHiddenSize ? String(manualHiddenSize * 4) : ''
+                          }
+                          value={manualIntermediateSize || ''}
+                          onChange={(event) =>
+                            setManualIntermediateSize(
+                              Number(event.target.value) || 0,
+                            )
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Total experts (MoE, optional)
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='0'
+                          value={manualNumExperts || ''}
+                          onChange={(event) =>
+                            setManualNumExperts(Number(event.target.value) || 0)
+                          }
+                        />
+                      </label>
+                      <label className='flex flex-col text-sm'>
+                        Experts per token
+                        <input
+                          className='input input-bordered mt-1'
+                          type='number'
+                          lang='en-US'
+                          min='1'
+                          value={manualNumExpertsPerToken || ''}
+                          onChange={(event) =>
+                            setManualNumExpertsPerToken(
+                              Number(event.target.value) || 0,
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className='flex flex-wrap gap-4 text-sm'>
+                      <label className='flex items-center gap-2'>
+                        <input
+                          className='checkbox checkbox-primary'
+                          type='checkbox'
+                          checked={manualGatedMlp}
+                          onChange={(event) =>
+                            setManualGatedMlp(event.target.checked)
+                          }
+                        />
+                        Gated MLP (SwiGLU/GEGLU)
+                      </label>
+                      <label className='flex items-center gap-2'>
+                        <input
+                          className='checkbox checkbox-primary'
+                          type='checkbox'
+                          checked={manualTieWordEmbeddings}
+                          onChange={(event) =>
+                            setManualTieWordEmbeddings(event.target.checked)
+                          }
+                        />
+                        Tie input/output embeddings
+                      </label>
+                    </div>
                     <label className='flex flex-col text-sm'>
-                      Hidden size
+                      Vocabulary size (for FLOPs)
                       <input
                         className='input input-bordered mt-1'
                         type='number'
+                        lang='en-US'
                         min='0'
-                        value={manualHiddenSize}
+                        value={vocabSize}
                         onChange={(event) =>
-                          setManualHiddenSize(Number(event.target.value) || 0)
-                        }
-                      />
-                    </label>
-                    <label className='flex flex-col text-sm'>
-                      Layers
-                      <input
-                        className='input input-bordered mt-1'
-                        type='number'
-                        min='0'
-                        value={manualNumLayers}
-                        onChange={(event) =>
-                          setManualNumLayers(Number(event.target.value) || 0)
-                        }
-                      />
-                    </label>
-                    <label className='flex flex-col text-sm'>
-                      Attention heads
-                      <input
-                        className='input input-bordered mt-1'
-                        type='number'
-                        min='0'
-                        value={manualNumHeads}
-                        onChange={(event) =>
-                          setManualNumHeads(Number(event.target.value) || 0)
-                        }
-                      />
-                    </label>
-                    <label className='flex flex-col text-sm'>
-                      Feed-forward size
-                      <input
-                        className='input input-bordered mt-1'
-                        type='number'
-                        min='0'
-                        placeholder={
-                          manualHiddenSize ? String(manualHiddenSize * 4) : ''
-                        }
-                        value={manualIntermediateSize || ''}
-                        onChange={(event) =>
-                          setManualIntermediateSize(
-                            Number(event.target.value) || 0,
-                          )
+                          setVocabSize(Number(event.target.value) || 0)
                         }
                       />
                     </label>
                   </div>
-                  <label className='flex flex-col text-sm'>
-                    Vocabulary size (for FLOPs)
-                    <input
-                      className='input input-bordered mt-1'
-                      type='number'
-                      min='0'
-                      value={vocabSize}
-                      onChange={(event) =>
-                        setVocabSize(Number(event.target.value) || 0)
-                      }
-                    />
-                  </label>
-                </div>
+                </details>
               )}
               {architectureMode === 'auto' && (
                 <p className='mt-5 rounded-lg bg-base-200 px-3 py-2 text-xs text-base-content/70'>
@@ -946,7 +1554,10 @@ export default function HomePage() {
           </div>
 
           <div className='space-y-6'>
-            <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
+            <div
+              id='hardware'
+              className='scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
+            >
               <h2 className='text-xl font-semibold'>Memory &amp; hardware</h2>
               <p className='mt-1 text-sm text-base-content/70'>
                 {mode === 'inference'
@@ -956,10 +1567,11 @@ export default function HomePage() {
                   : `Assumes a global batch size of ${effectiveBatchSize} sequences.`}
               </p>
               <p className='mt-2 text-xs text-base-content/70'>
-                Weight memory and KV cache are exact arithmetic from your
-                inputs. Activations, optimizer state, total VRAM, fit checks,
-                and GPU recommendations are heuristic estimates because they
-                depend on runtime behavior and overhead assumptions.
+                Weight memory is exact arithmetic. Cache memory uses typed model
+                schedules when available (including compressed or state-space
+                layers); activations, total VRAM, fit checks, and GPU
+                recommendations remain estimates because runtime behavior and
+                placement assumptions vary.
               </p>
               <div className='mt-4 grid gap-3 text-sm'>
                 <div className='flex items-center justify-between'>
@@ -985,6 +1597,14 @@ export default function HomePage() {
                     {formatMemory(memoryBreakdown.kvCacheGB)}
                   </span>
                 </div>
+                {memoryBreakdown.stateCacheGB > 0 && (
+                  <div className='flex items-center justify-between rounded-lg bg-secondary/10 px-3 py-2'>
+                    <span>Recurrent/state cache</span>
+                    <span className='font-semibold'>
+                      {formatMemory(memoryBreakdown.stateCacheGB)}
+                    </span>
+                  </div>
+                )}
                 {mode === 'training' && memoryBreakdown.optimizerGB > 0 && (
                   <div className='flex items-center justify-between'>
                     <span>Optimizer state</span>
@@ -1021,26 +1641,140 @@ export default function HomePage() {
                   className='select select-bordered mt-2 w-full'
                   value={selectedGpuName}
                   onChange={(event) => setSelectedGpuName(event.target.value)}
+                  aria-label='Compare against GPU'
                 >
-                  {gpus.map((gpu) => (
-                    <option key={gpu.name} value={gpu.name}>
-                      {gpu.name} ({gpu.memory_gb} GB)
-                    </option>
+                  {gpuGroups.map((group) => (
+                    <optgroup key={group.key} label={group.label}>
+                      {group.gpus.map((gpu) => (
+                        <option key={gpu.name} value={gpu.name}>
+                          {gpu.name} ({gpu.memory_gb} GB)
+                          {group.vendor === 'Apple'
+                            ? ` · ${gpu.architecture}`
+                            : ''}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
 
                 {selectedGpu && (
-                  <p
-                    className={`mt-3 text-sm ${
-                      memoryHeadroom !== null && memoryHeadroom >= 0
-                        ? 'text-success'
-                        : 'text-error'
-                    }`}
-                  >
-                    {memoryHeadroom !== null && memoryHeadroom >= 0
-                      ? `Fits with ${formatNumber(memoryHeadroom, 2)} GB headroom.`
-                      : 'Model does not fit on the selected GPU.'}
-                  </p>
+                  <>
+                    <VramUsageBar
+                      capacityGB={selectedGpu.memory_gb}
+                      totalGB={memoryBreakdown.totalGB}
+                      segments={[
+                        {
+                          label: 'Model weights',
+                          valueGB: memoryBreakdown.weightsGB,
+                          color: 'bg-sky-500',
+                        },
+                        {
+                          label: 'KV cache',
+                          valueGB: memoryBreakdown.kvCacheGB,
+                          color: 'bg-violet-500',
+                        },
+                        ...(memoryBreakdown.activationsGB > 0
+                          ? [
+                              {
+                                label: 'Activations',
+                                valueGB: memoryBreakdown.activationsGB,
+                                color: 'bg-amber-500',
+                              },
+                            ]
+                          : []),
+                        ...(memoryBreakdown.optimizerGB > 0
+                          ? [
+                              {
+                                label: 'Optimizer state',
+                                valueGB: memoryBreakdown.optimizerGB,
+                                color: 'bg-orange-600',
+                              },
+                            ]
+                          : []),
+                        ...(memoryBreakdown.stateCacheGB > 0
+                          ? [
+                              {
+                                label: 'Recurrent/state cache',
+                                valueGB: memoryBreakdown.stateCacheGB,
+                                color: 'bg-fuchsia-500',
+                              },
+                            ]
+                          : []),
+                        {
+                          label: 'Framework overhead',
+                          valueGB: memoryBreakdown.overheadGB,
+                          color: 'bg-slate-400',
+                        },
+                      ]}
+                      fits={selectedHardwareFit.fits}
+                      requiredDevices={selectedHardwareFit.requiredDevices}
+                      deviceCount={selectedHardwareFit.deviceCount}
+                    />
+                    <dl className='mt-4 grid gap-3 text-xs sm:grid-cols-2'>
+                      <div>
+                        <dt className='text-base-content/65'>
+                          Vendor / architecture
+                        </dt>
+                        <dd className='font-semibold'>
+                          {selectedGpu.vendor ?? 'Unknown'} ·{' '}
+                          {selectedGpu.architecture ?? 'Unknown'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className='text-base-content/65'>Memory</dt>
+                        <dd className='font-semibold'>
+                          {selectedGpu.memory_gb} GB aggregate ·{' '}
+                          {selectedGpu.per_device_memory_gb} GB/device ·{' '}
+                          {selectedGpu.memory_type}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className='text-base-content/65'>Bandwidth</dt>
+                        <dd className='font-semibold'>
+                          {selectedGpu.memory_bandwidth_gb_s
+                            ? `${formatNumber(selectedGpu.memory_bandwidth_gb_s, 0)} GB/s`
+                            : 'Not published'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className='text-base-content/65'>Topology</dt>
+                        <dd className='font-semibold'>
+                          {selectedGpu.device_count > 1
+                            ? `${selectedGpu.device_count} devices · ${selectedHardwareFit.requiredDevices} required`
+                            : selectedGpu.memory_model === 'unified'
+                              ? 'Unified local memory'
+                              : 'Single device'}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p
+                      className={`mt-3 text-sm ${
+                        selectedHardwareFit.fits ? 'text-success' : 'text-error'
+                      }`}
+                    >
+                      {selectedHardwareFit.fits
+                        ? `Fits within aggregate capacity with ${formatNumber(
+                            selectedHardwareFit.aggregateHeadroomGB,
+                            2,
+                          )} GB headroom.`
+                        : 'Model does not fit within the listed device/topology capacity.'}
+                    </p>
+                    {selectedGpu.notes && (
+                      <p className='mt-2 text-xs text-base-content/65'>
+                        {selectedGpu.notes}
+                      </p>
+                    )}
+                    {selectedGpu.source_url && (
+                      <a
+                        className='link link-primary mt-2 inline-block text-xs'
+                        href={selectedGpu.source_url}
+                        target='_blank'
+                        rel='noreferrer'
+                      >
+                        Verify official hardware specification ↗
+                      </a>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1052,7 +1786,12 @@ export default function HomePage() {
                   <ul className='mt-2 space-y-1'>
                     {recommendedGpuList.map((gpu) => (
                       <li key={gpu.name} className='flex justify-between'>
-                        <span>{gpu.name}</span>
+                        <span>
+                          {gpu.name}
+                          {gpu.requiredDevices > 1
+                            ? ` · ${gpu.requiredDevices}/${gpu.deviceCount} devices`
+                            : ''}
+                        </span>
                         <span className='text-base-content/70'>
                           {formatNumber(gpu.memoryHeadroomGB, 2)} GB spare
                         </span>
@@ -1061,23 +1800,47 @@ export default function HomePage() {
                   </ul>
                 </div>
               )}
+
+              {mode === 'inference' && (
+                <KvCacheScalingCard
+                  kvCacheGB={memoryBreakdown.kvCacheGB}
+                  stateCacheGB={memoryBreakdown.stateCacheGB}
+                  cacheMode={memoryBreakdown.kvCacheMode}
+                  cacheDescription={memoryBreakdown.kvCacheDescription}
+                  attentionLayers={memoryBreakdown.kvAttentionLayers}
+                  bytesPerToken={memoryBreakdown.kvCacheBytesPerToken}
+                  totalTokens={memoryBreakdown.kvCacheTokens}
+                  sequenceLength={sequenceLength}
+                  batchSize={effectiveBatchSize}
+                  precisionBits={kvBits}
+                  numLayers={effectiveNumLayers}
+                  numAttentionHeads={effectiveNumHeads}
+                  numKeyValueHeads={effectiveNumKeyValueHeads}
+                  headDim={effectiveHeadDim}
+                />
+              )}
             </div>
 
-            <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
+            <div
+              id='performance'
+              className='scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
+            >
               <h2 className='text-xl font-semibold'>Performance</h2>
               <p className='mt-2 text-xs text-base-content/70'>
-                All performance outputs below are heuristic estimates. They use
-                a simplified compute model and
+                Performance outputs are heuristic decode estimates. TPS uses the
+                lower of compute and weight-memory bandwidth ceilings and does
+                not represent prefill/TTFT or a measured serving run; it
                 {selectedPreset?.activeParameterCount
-                  ? ' prefer active parameters for the selected MoE-style preset.'
-                  : ' default to total parameters when no active-parameter metadata is available.'}
+                  ? ' prefers active parameters for the selected MoE-style preset.'
+                  : ' defaults to total parameters when no active-parameter metadata is available.'}
               </p>
-              <div className='mt-4 grid gap-4 text-sm md:grid-cols-2'>
-                <label className='flex flex-col'>
-                  Kernel efficiency
+              <div className='mt-5 grid gap-3 text-sm sm:grid-cols-2'>
+                <label className='rounded-xl border border-base-300 bg-base-200 p-4'>
+                  <span className='font-semibold'>Compute efficiency</span>
                   <input
-                    className='input input-bordered mt-1'
+                    className='input input-bordered mt-2 w-full'
                     type='number'
+                    lang='en-US'
                     min='0.05'
                     max='1'
                     step='0.05'
@@ -1086,64 +1849,171 @@ export default function HomePage() {
                       setEfficiency(Number(event.target.value) || 0.3)
                     }
                   />
+                  <span className='mt-2 block text-xs text-base-content/60'>
+                    Kernel/framework utilization of the published compute
+                    ceiling.
+                  </span>
                 </label>
-                <div className='rounded-lg bg-base-200 p-3'>
-                  <p>
-                    <span className='font-semibold'>GPU FP32 throughput:</span>{' '}
-                    {selectedGpu?.fp32_tflops
-                      ? `${formatNumber(selectedGpu.fp32_tflops, 1)} TFLOPs`
+                <label className='rounded-xl border border-base-300 bg-base-200 p-4'>
+                  <span className='font-semibold'>
+                    Memory-bandwidth efficiency
+                  </span>
+                  <input
+                    className='input input-bordered mt-2 w-full'
+                    type='number'
+                    lang='en-US'
+                    min='0.1'
+                    max='1'
+                    step='0.05'
+                    value={memoryEfficiency}
+                    onChange={(event) =>
+                      setMemoryEfficiency(Number(event.target.value) || 0.65)
+                    }
+                  />
+                  <span className='mt-2 block text-xs text-base-content/60'>
+                    Effective bandwidth after runtime, placement, and kernel
+                    overhead.
+                  </span>
+                </label>
+              </div>
+
+              <div className='mt-4 rounded-xl border border-base-300 bg-base-200 p-4'>
+                <div className='flex flex-wrap items-start justify-between gap-3'>
+                  <div>
+                    <h3 className='font-semibold'>Selected hardware path</h3>
+                    <p className='mt-1 text-xs text-base-content/65'>
+                      {selectedGpu?.name ?? 'No hardware selected'} ·{' '}
+                      {weightFormat.toUpperCase()} weights ·{' '}
+                      {effectiveBatchSize} sequence(s)
+                    </p>
+                  </div>
+                  {throughput.bottleneck !== 'unavailable' && (
+                    <span className='badge badge-primary'>
+                      {throughput.bottleneck}-bound
+                    </span>
+                  )}
+                </div>
+                <dl className='mt-4 grid gap-3 text-xs sm:grid-cols-3'>
+                  <div>
+                    <dt className='text-base-content/60'>Compute ceiling</dt>
+                    <dd className='mt-1 text-sm font-semibold'>
+                      {selectedComputeTFlops > 0
+                        ? `${formatNumber(selectedComputeTFlops, 1)} ${weightFormat.toUpperCase()} TFLOP/s`
+                        : 'Unavailable for this format'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className='text-base-content/60'>Memory bandwidth</dt>
+                    <dd className='mt-1 text-sm font-semibold'>
+                      {selectedGpu?.memory_bandwidth_gb_s
+                        ? `${formatNumber(selectedGpu.memory_bandwidth_gb_s, 0)} GB/s`
+                        : 'Unavailable'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className='text-base-content/60'>
+                      Published AI figure
+                    </dt>
+                    <dd className='mt-1 text-sm font-semibold'>
+                      {selectedGpu?.ai_tops
+                        ? `${formatNumber(selectedGpu.ai_tops, 0)} TOPS`
+                        : 'Not published'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className='mt-4 grid gap-3 sm:grid-cols-3'>
+                <div className='rounded-xl border border-primary/30 bg-primary/10 p-4'>
+                  <div className='text-xs font-semibold uppercase tracking-wide text-primary'>
+                    Decode TPS
+                  </div>
+                  <div className='mt-2 text-3xl font-bold tabular-nums'>
+                    {throughput.tokensPerSecond
+                      ? formatNumber(throughput.tokensPerSecond, 2)
                       : 'N/A'}
-                  </p>
-                  <p className='text-xs text-base-content/70'>
-                    Adjust the efficiency multiplier to reflect framework and
-                    kernel optimisations.
-                  </p>
+                  </div>
+                  <div className='mt-1 text-xs text-base-content/65'>
+                    tokens / second
+                  </div>
+                </div>
+                <div className='rounded-xl border border-base-300 bg-base-200 p-4'>
+                  <div className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                    Compute ceiling
+                  </div>
+                  <div className='mt-2 text-2xl font-bold tabular-nums'>
+                    {throughput.computeBoundTokensPerSecond > 0
+                      ? formatNumber(throughput.computeBoundTokensPerSecond, 2)
+                      : '—'}
+                  </div>
+                  <div className='mt-1 text-xs text-base-content/65'>
+                    tokens / second
+                  </div>
+                </div>
+                <div className='rounded-xl border border-base-300 bg-base-200 p-4'>
+                  <div className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                    Memory ceiling
+                  </div>
+                  <div className='mt-2 text-2xl font-bold tabular-nums'>
+                    {throughput.memoryBoundTokensPerSecond > 0
+                      ? formatNumber(throughput.memoryBoundTokensPerSecond, 2)
+                      : '—'}
+                  </div>
+                  <div className='mt-1 text-xs text-base-content/65'>
+                    tokens / second
+                  </div>
                 </div>
               </div>
 
-              <div className='mt-4 space-y-3 text-sm'>
-                <p>
-                  <span className='font-semibold'>
-                    Estimated FLOPs / sequence:
-                  </span>{' '}
-                  {flops
-                    ? `${formatNumber(flops / 10 ** 12, 2)} TFLOPs`
-                    : 'N/A'}
-                </p>
-                <p>
-                  <span className='font-semibold'>Tokens per second:</span>{' '}
-                  {throughput.tokensPerSecond
-                    ? formatNumber(throughput.tokensPerSecond, 2)
-                    : 'N/A'}
-                </p>
-                <p>
-                  <span className='font-semibold'>Milliseconds per token:</span>{' '}
-                  {throughput.millisecondsPerToken
-                    ? formatNumber(throughput.millisecondsPerToken, 2)
-                    : 'N/A'}
-                </p>
+              <div className='mt-3 grid gap-3 text-sm sm:grid-cols-2'>
+                <div className='rounded-xl border border-base-300 p-4'>
+                  <span className='font-semibold'>Latency estimate</span>
+                  <div className='mt-1 text-xl font-bold tabular-nums'>
+                    {throughput.millisecondsPerToken
+                      ? `${formatNumber(throughput.millisecondsPerToken, 2)} ms/token`
+                      : 'N/A'}
+                  </div>
+                </div>
+                <div className='rounded-xl border border-base-300 p-4'>
+                  <span className='font-semibold'>FLOPs / sequence</span>
+                  <div className='mt-1 text-xl font-bold tabular-nums'>
+                    {flops
+                      ? `${formatNumber(flops / 10 ** 12, 2)} TFLOPs`
+                      : 'N/A'}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className='rounded-xl border border-base-300 bg-base-100 p-6 shadow-lg'>
+            <div
+              id='cost'
+              className='scroll-mt-24 rounded-2xl border border-base-300 bg-base-100 p-6 shadow-lg shadow-black/10'
+            >
               <h2 className='text-xl font-semibold'>Cloud cost projection</h2>
               <p className='mt-2 text-xs text-base-content/70'>
-                Cloud cost is exact arithmetic from hourly rate × runtime. It
-                does not include hidden provider fees outside the selected rate.
+                Verified on-demand offerings matching {selectedGpu.name}. Cost
+                is hourly rate × runtime and excludes storage, networking,
+                taxes, and unavailable capacity.
               </p>
               <div className='mt-4 grid gap-4 text-sm md:grid-cols-2'>
                 <label className='flex flex-col'>
                   Cloud instance
                   <select
                     className='select select-bordered mt-1'
-                    value={selectedInstanceName}
+                    value={selectedInstance?.name ?? ''}
                     onChange={(event) =>
                       setSelectedInstanceName(event.target.value)
                     }
                   >
-                    {cloudInstances.map((instance) => (
+                    {matchingCloudInstances.length === 0 && (
+                      <option value='' disabled>
+                        No verified offering for this GPU
+                      </option>
+                    )}
+                    {matchingCloudInstances.map((instance) => (
                       <option key={instance.name} value={instance.name}>
-                        {instance.provider} {instance.name} ({instance.gpu})
+                        {instance.provider} · {instance.name} · $
+                        {formatNumber(instance.hourly_rate, 2)}/hr
                       </option>
                     ))}
                   </select>
@@ -1153,6 +2023,7 @@ export default function HomePage() {
                   <input
                     className='input input-bordered mt-1'
                     type='number'
+                    lang='en-US'
                     min='0'
                     step='0.25'
                     value={runtimeHours}
@@ -1166,6 +2037,7 @@ export default function HomePage() {
                   <input
                     className='input input-bordered mt-1'
                     type='number'
+                    lang='en-US'
                     min='0'
                     step='0.01'
                     value={customHourlyRate === '' ? '' : customHourlyRate}
@@ -1180,12 +2052,37 @@ export default function HomePage() {
                     <span className='font-semibold'>
                       Effective hourly rate:
                     </span>{' '}
-                    ${formatNumber(hourlyRate, 2)}
+                    {hourlyRate > 0 ? `$${formatNumber(hourlyRate, 2)}` : 'N/A'}
                   </p>
                   <p>
-                    <span className='font-semibold'>Projected cost:</span> $
-                    {formatNumber(costEstimate.totalCost, 2)}
+                    <span className='font-semibold'>Projected cost:</span>{' '}
+                    {hourlyRate > 0
+                      ? `$${formatNumber(costEstimate.totalCost, 2)}`
+                      : 'N/A'}
                   </p>
+                  {selectedInstance ? (
+                    <>
+                      <p className='mt-2 text-xs text-base-content/65'>
+                        {selectedInstance.pricing_basis} Checked{' '}
+                        {selectedInstance.source_checked_at}; billed{' '}
+                        {selectedInstance.billing_increment}.
+                      </p>
+                      <a
+                        className='link link-primary mt-1 inline-block text-xs'
+                        href={selectedInstance.pricing_source_url}
+                        target='_blank'
+                        rel='noreferrer'
+                      >
+                        Verify current provider pricing ↗
+                      </a>
+                    </>
+                  ) : (
+                    <p className='mt-2 text-xs text-warning'>
+                      No fixed, provider-verified on-demand rate is available
+                      for this exact hardware. Enter a custom rate only if you
+                      have a current quote.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1194,107 +2091,4 @@ export default function HomePage() {
       </div>
     </main>
   );
-}
-
-function parseModelConfig(config: Record<string, unknown>): ModelMetadata {
-  const directParamKeys = [
-    'num_parameters',
-    'n_parameters',
-    'n_params',
-    'num_params',
-    'total_params',
-    'model_size',
-  ];
-
-  let parameterCount = 0;
-  for (const key of directParamKeys) {
-    const value = safeNumber(config[key]);
-    if (value && value > 0) {
-      parameterCount = value;
-      break;
-    }
-  }
-
-  if (
-    !parameterCount &&
-    typeof config.model === 'object' &&
-    config.model !== null
-  ) {
-    const nested = config.model as Record<string, unknown>;
-    const nestedCount = safeNumber(nested.num_parameters);
-    if (nestedCount && nestedCount > 0) {
-      parameterCount = nestedCount;
-    }
-  }
-
-  const hiddenSize =
-    safeNumber(config.hidden_size) ?? safeNumber(config.d_model) ?? 0;
-  const numLayers =
-    safeNumber(config.num_hidden_layers) ??
-    safeNumber(config.num_layers) ??
-    safeNumber(config.n_layer) ??
-    0;
-  const numHeads =
-    safeNumber(config.num_attention_heads) ??
-    safeNumber(config.num_heads) ??
-    safeNumber(config.n_head) ??
-    0;
-  const intermediateSize =
-    safeNumber(config.intermediate_size) ??
-    safeNumber(config.ffn_dim) ??
-    safeNumber(config.d_ff);
-  const sequenceLength =
-    safeNumber(config.max_position_embeddings) ??
-    safeNumber(config.seq_length) ??
-    safeNumber(config.n_positions);
-  const vocabSize = safeNumber(config.vocab_size);
-  const kvHeads =
-    safeNumber(config.num_key_value_heads) ?? safeNumber(config.n_head_kv);
-  let parameterSource: ModelMetadata['parameterSource'] = parameterCount
-    ? 'explicit'
-    : undefined;
-
-  if (!parameterCount && hiddenSize && numLayers && numHeads && vocabSize) {
-    parameterCount = estimateTransformerParameters({
-      vocabSize,
-      hiddenSize,
-      numLayers,
-      numAttentionHeads: numHeads,
-      intermediateSize,
-      numKeyValueHeads: kvHeads ?? undefined,
-    });
-    parameterSource = 'estimated';
-  }
-
-  const dtypeRaw = config.torch_dtype as string | undefined;
-  const dtypeBits: PrecisionBits | undefined = (() => {
-    switch (dtypeRaw) {
-      case 'float32':
-      case 'torch.float32':
-        return 32;
-      case 'float16':
-      case 'torch.float16':
-      case 'bfloat16':
-      case 'torch.bfloat16':
-        return 16;
-      case 'int8':
-        return 8;
-      case 'int4':
-        return 4;
-      default:
-        return undefined;
-    }
-  })();
-
-  return {
-    parameterCount,
-    hiddenSize: hiddenSize ?? 0,
-    numLayers: numLayers ?? 0,
-    numHeads: numHeads ?? 0,
-    intermediateSize: intermediateSize ?? undefined,
-    sequenceLength: sequenceLength ?? undefined,
-    vocabSize: vocabSize ?? undefined,
-    dtypeBits,
-    parameterSource,
-  };
 }
