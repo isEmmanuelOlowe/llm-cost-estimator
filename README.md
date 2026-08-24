@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://isemmanuelolowe.github.io/llm-explorer/"><strong>Open the live explorer →</strong></a>
+  <a href="https://llm.labiium.com/"><strong>Open the live explorer →</strong></a>
 </p>
 
 ![LLM Explorer](public/images/large-og.png)
@@ -101,14 +101,14 @@ The test suite covers estimator arithmetic, hybrid cache schedules, model metada
 
 The project uses Next.js Pages Router with `output: 'export'`. `.github/workflows/nextjs.yml` publishes `master` to GitHub Pages.
 
-Production configuration is repository-name-safe:
+Production uses the dedicated LABIIUM product domain and serves from its root:
 
 ```text
-NEXT_PUBLIC_SITE_URL=https://<owner>.github.io
-NEXT_PUBLIC_BASE_PATH=/<repository>
+NEXT_PUBLIC_SITE_URL=https://llm.labiium.com
+NEXT_PUBLIC_BASE_PATH=
 ```
 
-The workflow derives both values from GitHub, so canonical URLs, sitemap entries, fonts, favicons, and static assets continue to work under the repository Pages path.
+The workflow pins both values so canonical URLs, sitemap entries, fonts, favicons, and static assets resolve consistently at `llm.labiium.com`. GitHub Pages remains the deployment target; Cloudflare provides the public DNS entry.
 
 ## Security and data boundaries
 

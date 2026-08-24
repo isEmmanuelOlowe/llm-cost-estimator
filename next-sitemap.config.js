@@ -3,7 +3,7 @@
  * @see https://github.com/iamvishnusankar/next-sitemap#readme
  */
 const siteOrigin = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://isemmanuelolowe.github.io'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://llm.labiium.com'
 ).replace(/\/+$/, '');
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 

@@ -29,8 +29,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io
-      NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+      NEXT_PUBLIC_SITE_URL: https://llm.labiium.com
+      NEXT_PUBLIC_BASE_PATH: ''
     steps:
       - name: Checkout
         uses: actions/checkout@v6

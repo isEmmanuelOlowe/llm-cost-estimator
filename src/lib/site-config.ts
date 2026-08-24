@@ -1,7 +1,7 @@
 const DEFAULT_SITE_NAME = 'LLM Explorer';
 const DEFAULT_SITE_DESCRIPTION =
   'Explore LLM architectures, memory scaling, hardware fit, and hosting costs for modern open models.';
-const DEFAULT_SITE_ORIGIN = 'https://isemmanuelolowe.github.io';
+const DEFAULT_SITE_ORIGIN = 'https://llm.labiium.com';
 const DEFAULT_BASE_PATH = '';
 const DEFAULT_OG_IMAGE_PATH = '/images/large-og.png';
 

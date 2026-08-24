@@ -29,6 +29,16 @@ describe('site config helpers', () => {
     expect(withBasePath('/')).toBe('/llm-explorer');
   });
 
+  it('uses the public LABIIUM domain at the site root by default', async () => {
+    delete process.env.NEXT_PUBLIC_BASE_PATH;
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+
+    const { absoluteUrl, withBasePath } = await import('@/lib/site-config');
+
+    expect(withBasePath('/')).toBe('/');
+    expect(absoluteUrl('/')).toBe('https://llm.labiium.com/');
+  });
+
   it('builds absolute URLs from the configured site origin', async () => {
     process.env.NEXT_PUBLIC_BASE_PATH = '/llm-explorer';
     process.env.NEXT_PUBLIC_SITE_URL = 'https://example.com/';
